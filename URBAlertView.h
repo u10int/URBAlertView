@@ -24,6 +24,8 @@ typedef void (^URBAlertViewBlock)(NSInteger buttonIndex, URBAlertView *alertView
 
 @property (nonatomic, copy) NSString *title;
 @property (nonatomic, copy) NSString *subtitle;
+@property (nonatomic, assign) BOOL darkenBackground;
+@property (nonatomic, assign) BOOL blurBackground;
 
 + (URBAlertView *)dialogWithTitle:(NSString *)title subtitle:(NSString *)subtitle;
 

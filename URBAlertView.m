@@ -38,6 +38,7 @@
 @property (nonatomic, strong) URBAlertWindowOverlay *overlay;
 @property (nonatomic, assign) URBAlertAnimation animationType;
 @property (nonatomic, strong) URBAlertViewBlock block;
+@property (nonatomic, strong) UIView *blurredBackgroundView;
 @property (nonatomic, strong) UIWindow *window;
 - (CGRect)defaultFrame;
 - (void)animateWithType:(URBAlertAnimation)animation show:(BOOL)show completionBlock:(void(^)())completion;
@@ -83,6 +84,8 @@
 		
 		self.opaque = NO;
 		self.alpha = 1.0;
+		self.darkenBackground = YES;
+		self.blurBackground = YES;
 	}
 	return self;
 }
@@ -107,6 +110,7 @@
 	URBAlertViewButton *button = [[URBAlertViewButton alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, kURBAlertButtonHeight)];
 	[button setTitle:title forState:UIControlStateNormal];
 	[button addTarget:self action:@selector(buttonTapped:) forControlEvents:UIControlEventTouchUpInside];
+	button.titleLabel.font = [UIFont fontWithName:self.titleFont.fontName size:16.0];
 	
 	[self.buttons addObject:button];
 	
@@ -154,13 +158,11 @@
 #pragma mark - Drawing
 
 - (void)layoutSubviews {
+	[super layoutSubviews];
+	
 	CGFloat layoutFrameInset = kURBAlertFrameInset + kURBAlertPadding;
 	CGRect layoutFrame = CGRectInset(self.bounds, layoutFrameInset, layoutFrameInset);
 	CGFloat layoutWidth = CGRectGetWidth(layoutFrame);
-	
-	//NSLog(@"frame=(%f, %f); (%f x %f)", self.bounds.origin.x, self.bounds.origin.y, self.bounds.size.width, self.bounds.size.height);
-	//NSLog(@"layoutFrameInset=%f, layoutFrame=(%f, %f); (%f x %f)", layoutFrameInset, layoutFrame.origin.x, layoutFrame.origin.y, layoutFrame.size.width, layoutFrame.size.height);
-	//NSLog(@"frameWidth=%f, layoutWidth=%f", self.bounds.size.width, layoutWidth);
 	
 	// title frame
 	CGFloat titleHeight = 0;
@@ -356,7 +358,13 @@
 }
 
 - (void)animateWithType:(URBAlertAnimation)animation show:(BOOL)show completionBlock:(void (^)())completion {
-		
+	// make sure everything is laid out before we try animation, otherwise we get some sketchy things happening
+	// especially with the buttons
+	if (show) {
+		[self setNeedsLayout];
+		[self layoutIfNeeded];
+	}
+	
 	// fade animation
 	if (animation == URBAlertAnimationFade) {
 		if (show) {
@@ -517,19 +525,16 @@
 		if (show) {
 			[self showOverlay:YES];
 			
-			self.alpha = 0.0f;
-			self.transform = CGAffineTransformIdentity;
-			self.layer.transform = CATransform3DIdentity;
-			
+			self.alpha = 0.0f;			
 			[UIView animateWithDuration:0.17 animations:^{
-				self.transform = CGAffineTransformMakeScale(1.1, 1.1);
+				self.layer.transform = CATransform3DMakeScale(1.1, 1.1, 1.0);
 				self.alpha = 1.0f;
 			} completion:^(BOOL finished) {
 				[UIView animateWithDuration:0.12 animations:^{
-					self.transform = CGAffineTransformMakeScale(0.9, 0.9);
+					self.layer.transform = CATransform3DMakeScale(0.9, 0.9, 1.0);
 				} completion:^(BOOL finished) {
 					[UIView animateWithDuration:0.1 animations:^{
-						self.transform = CGAffineTransformIdentity;
+						self.layer.transform = CATransform3DIdentity;
 					} completion:^(BOOL finished) {
 						if (completion)
 							completion();
@@ -541,10 +546,10 @@
 			[self showOverlay:NO];
 			
 			[UIView animateWithDuration:0.1 animations:^{
-				self.transform = CGAffineTransformMakeScale(1.1, 1.1);
+				self.layer.transform = CATransform3DMakeScale(1.1, 1.1, 1.0);
 			} completion:^(BOOL finished) {
 				[UIView animateWithDuration:0.15 animations:^{
-					self.transform = CGAffineTransformMakeScale(0.0, 0.0);
+					self.layer.transform = CATransform3DIdentity;
 					self.alpha = 0.0f;
 				} completion:^(BOOL finished) {
 					[self cleanup];
@@ -564,17 +569,22 @@
 		window.windowLevel = UIWindowLevelStatusBar + 1;
 		window.opaque = NO;
 		
-		self.overlay = [URBAlertWindowOverlay new];
-		URBAlertWindowOverlay *overlay = self.overlay;
-		overlay.opaque = NO;
-		overlay.alertView = self;
-		overlay.frame = self.window.bounds;
-		overlay.alpha = 0.0;
+		// darkened background
+		if (self.darkenBackground) {
+			self.overlay = [URBAlertWindowOverlay new];
+			URBAlertWindowOverlay *overlay = self.overlay;
+			overlay.opaque = NO;
+			overlay.alertView = self;
+			overlay.frame = self.window.bounds;
+			overlay.alpha = 0.0;
+		}
 		
-		// add blurred background
-		UIView *blurredView = [self blurredBackground];
-		blurredView.alpha = 0.0f;
-		[self.window addSubview:blurredView];
+		// blurred background
+		if (self.blurBackground) {
+			self.blurredBackgroundView = [self blurredBackground];
+			self.blurredBackgroundView.alpha = 0.0f;
+			[self.window addSubview:self.blurredBackgroundView];
+		}
 		
 		[self.window addSubview:self.overlay];
 		[self.window addSubview:self];
@@ -585,7 +595,7 @@
 			
 			// fade in overlay
 			[UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionLayoutSubviews animations:^{
-				blurredView.alpha = 1.0f;
+				self.blurredBackgroundView.alpha = 1.0f;
 				self.overlay.alpha = 1.0f;
 			} completion:^(BOOL finished) {
 				// stub
@@ -594,9 +604,10 @@
 	}
 	else {
 		[UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionLayoutSubviews animations:^{
-			self.overlay.alpha = 0.0;
+			self.overlay.alpha = 0.0f;
+			self.blurredBackground.alpha = 0.0f;
 		} completion:^(BOOL finished) {
-			// stub
+			self.blurredBackgroundView = nil;
 		}];
 	}
 }
@@ -658,7 +669,7 @@
 		static UIImage *normalButtonImage;
 		static dispatch_once_t once;
 		dispatch_once(&once, ^{
-			normalButtonImage = [self normalButtonImage];
+			normalButtonImage = [[self normalButtonImage] resizableImageWithCapInsets:UIEdgeInsetsMake(6.0f, 6.0f, 6.0f, 6.0f) resizingMode:UIImageResizingModeStretch];
 		});
 		[self setBackgroundImage:normalButtonImage forState:UIControlStateNormal];
 	}
@@ -672,15 +683,15 @@
 	CGContextRef context = UIGraphicsGetCurrentContext();
 	
 	// colors
-	UIColor *gradientColor = [UIColor colorWithRed: 0.218 green: 0.218 blue: 0.218 alpha: 1];
-	UIColor *gradientColor2 = [UIColor colorWithRed: 0.191 green: 0.191 blue: 0.191 alpha: 1];
+	UIColor *buttonBgGradientColorTop = [UIColor colorWithRed: 0.146 green: 0.146 blue: 0.146 alpha: 1];
+	UIColor *buttonBgGradientColorBottom = [UIColor colorWithRed: 0.069 green: 0.069 blue: 0.069 alpha: 1];
 	UIColor *buttonOuterGradientColor = [UIColor colorWithRed: 0.259 green: 0.259 blue: 0.259 alpha: 1];
 	UIColor *buttonOuterGradientColor2 = [UIColor colorWithRed: 0.172 green: 0.172 blue: 0.172 alpha: 1];
 	UIColor *buttonInnerGradientColor = [UIColor colorWithRed: 0.326 green: 0.326 blue: 0.326 alpha: 1];
 	UIColor *buttonInnerGradientColor2 = [UIColor colorWithRed: 0.26 green: 0.26 blue: 0.26 alpha: 1];
 	
 	// gradients
-	NSArray *buttonBgGradientColors = @[(id)gradientColor2.CGColor, (id)gradientColor.CGColor];
+	NSArray *buttonBgGradientColors = @[(id)buttonBgGradientColorTop.CGColor, (id)buttonBgGradientColorBottom.CGColor];
 	CGFloat buttonBgGradientLocations[] = {0, 1};
 	CGGradientRef buttonBgGradient = CGGradientCreateWithColors(colorSpace, (__bridge CFArrayRef)buttonBgGradientColors, buttonBgGradientLocations);
 	NSArray *buttonOuterGradientColors = @[(id)buttonOuterGradientColor.CGColor, (id)buttonOuterGradientColor2.CGColor];

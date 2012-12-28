@@ -71,12 +71,13 @@
 - (void)viewDidAppear:(BOOL)animated {
 	
 	URBAlertView *alertView = [URBAlertView dialogWithTitle:@"Test Dialog" subtitle:@"This is just a test dialog"];
+	alertView.blurBackground = NO;
 	[alertView addButtonWithTitle:@"Close"];
 	[alertView addButtonWithTitle:@"OK"];
 	[alertView setHandlerBlock:^(NSInteger buttonIndex, URBAlertView *alertView) {
 		NSLog(@"button index=%i", buttonIndex);
 		[self.alertView hideWithCompletionBlock:^{
-			NSLog(@"dialog closed");
+			// stub
 		}];
 	}];
 	
