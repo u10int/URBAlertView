@@ -75,7 +75,7 @@
 	[alertView addButtonWithTitle:@"Close"];
 	[alertView addButtonWithTitle:@"OK"];
 	[alertView setHandlerBlock:^(NSInteger buttonIndex, URBAlertView *alertView) {
-		NSLog(@"button index=%i", buttonIndex);
+		NSLog(@"button tapped: index=%i", buttonIndex);
 		[self.alertView hideWithCompletionBlock:^{
 			// stub
 		}];
