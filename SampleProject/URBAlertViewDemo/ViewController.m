@@ -62,7 +62,7 @@
 	
 	UIButton *slideButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
 	slideButton.frame = CGRectMake(CGRectGetMinX(buttonFrame), buttonYOffset, CGRectGetWidth(buttonFrame), CGRectGetHeight(buttonFrame));
-	[slideButton setTitle:@"Slide" forState:UIControlStateNormal];
+	[slideButton setTitle:@"Slide Left" forState:UIControlStateNormal];
 	[slideButton addTarget:self action:@selector(showDialogWithSlide) forControlEvents:UIControlEventTouchUpInside];
 	[self.view addSubview:slideButton];
 	buttonYOffset += CGRectGetHeight(slideButton.frame) + buttonPad;
@@ -105,7 +105,7 @@
 }
 
 - (void)showDialogWithSlide {
-	[self.alertView showWithAnimation:URBAlertAnimationSlide];
+	[self.alertView showWithAnimation:URBAlertAnimationSlideLeft];
 }
 
 @end

@@ -14,7 +14,8 @@ enum {
 	URBAlertAnimationFlipHorizontal,
 	URBAlertAnimationFlipVertical,
 	URBAlertAnimationTumble,
-	URBAlertAnimationSlide
+	URBAlertAnimationSlideLeft,
+	URBAlertAnimationSlideRight
 };
 typedef NSInteger URBAlertAnimation;
 

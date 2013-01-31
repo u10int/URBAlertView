@@ -487,13 +487,18 @@
 	}
 	
 	// slide animation
-	else if (animation == URBAlertAnimationSlide) {
+	else if (animation == URBAlertAnimationSlideLeft || animation == URBAlertAnimationSlideRight) {		
 		if (show) {
 			[self showOverlay:YES];
 			
-			self.layer.transform = CATransform3DMakeTranslation(200.0, 0.0, 0.0);
+			CGFloat startX = (animation == URBAlertAnimationSlideLeft) ? 200.0 : -200.0;
+			CGFloat shiftX = 5.0;
+			if (animation == URBAlertAnimationSlideLeft)
+				shiftX *= -1.0;
+			
+			self.layer.transform = CATransform3DMakeTranslation(startX, 0.0, 0.0);
 			[UIView animateWithDuration:0.15 delay:0.0 options:UIViewAnimationCurveEaseOut animations:^{
-				self.layer.transform = CATransform3DMakeTranslation(-5.0, 0.0, 0.0);
+				self.layer.transform = CATransform3DMakeTranslation(shiftX, 0.0, 0.0);
 			} completion:^(BOOL finished) {
 				[UIView animateWithDuration:0.1 animations:^{
 					self.layer.transform = CATransform3DIdentity;
@@ -506,11 +511,16 @@
 		else {
 			[self showOverlay:NO];
 			
+			CGFloat finalX = (animation == URBAlertAnimationSlideLeft) ? -400.0 : 400.0;
+			CGFloat shiftX = 5.0;
+			if (animation == URBAlertAnimationSlideRight)
+				shiftX *= 1.0;
+			
 			[UIView animateWithDuration:0.1 animations:^{
-				self.layer.transform = CATransform3DMakeTranslation(5.0, 0.0, 0.0);
+				self.layer.transform = CATransform3DMakeTranslation(shiftX, 0.0, 0.0);
 			} completion:^(BOOL finished) {
 				[UIView animateWithDuration:0.15 delay:0.0 options:UIViewAnimationCurveEaseIn animations:^{
-					self.layer.transform = CATransform3DMakeTranslation(-400.0, 0.0, 0.0);
+					self.layer.transform = CATransform3DMakeTranslation(finalX, 0.0, 0.0);
 				} completion:^(BOOL finished) {
 					[self cleanup];
 					if (completion)
