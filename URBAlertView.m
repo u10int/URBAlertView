@@ -669,7 +669,7 @@
 		static UIImage *normalButtonImage;
 		static dispatch_once_t once;
 		dispatch_once(&once, ^{
-			normalButtonImage = [[self normalButtonImage] resizableImageWithCapInsets:UIEdgeInsetsMake(6.0f, 6.0f, 6.0f, 6.0f) resizingMode:UIImageResizingModeStretch];
+			normalButtonImage = [self normalButtonImage];
 		});
 		[self setBackgroundImage:normalButtonImage forState:UIControlStateNormal];
 	}
@@ -756,7 +756,7 @@
 	UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
 	
-    return image;
+    return [image resizableImageWithCapInsets:UIEdgeInsetsMake(0.0, 6.0, 0.0, 6.0)];
 }
 
 @end
@@ -822,7 +822,6 @@
     inBuffer.data = (void*)CFDataGetBytePtr(inBitmapData);
     
     //create vImage_Buffer for output
-    
     pixelBuffer = malloc(CGImageGetBytesPerRow(img) * CGImageGetHeight(img));
     
     if(pixelBuffer == NULL)
