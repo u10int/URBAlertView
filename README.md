@@ -6,7 +6,8 @@ URBAlertView
 `URBAlertView` is a block-based alternative to the default `UIAlertView` available in UIKit that offers easier customization and a wider range of presentation and dismissal animations (fade, zoom, slide, flip, tumble).
 
 ![Basic two-button layout example](http://dl.dropbox.com/u/197980/Screenshots/URBAlertView_screenshot01.png)
-![Basic two-button layout example](http://dl.dropbox.com/u/197980/Screenshots/URBAlertView_screenshot02.png)
+
+![Basic two-button layout example with text field](http://dl.dropbox.com/u/197980/Screenshots/URBAlertView_screenshot02.png)
 
 ## Installation
 
