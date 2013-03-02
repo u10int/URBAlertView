@@ -22,7 +22,7 @@
 	
 	CGFloat buttonPad = 10.0f;
 	CGFloat buttonWidth = self.view.bounds.size.width - buttonPad * 2;
-	CGFloat buttonYOffset = (self.view.bounds.size.height - buttonPad * 6 - 44.0 * 6) / 2.0;
+	CGFloat buttonYOffset = (self.view.bounds.size.height - buttonPad * 7 - 44.0 * 6) / 2.0;
 	CGRect buttonFrame = CGRectMake(buttonPad, 0, buttonWidth, 44.0);
 	
 	UIButton *defaultButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
@@ -66,12 +66,18 @@
 	[slideButton addTarget:self action:@selector(showDialogWithSlide) forControlEvents:UIControlEventTouchUpInside];
 	[self.view addSubview:slideButton];
 	buttonYOffset += CGRectGetHeight(slideButton.frame) + buttonPad;
+	
+	UIButton *textFieldButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+	textFieldButton.frame = CGRectMake(CGRectGetMinX(buttonFrame), buttonYOffset, CGRectGetWidth(buttonFrame), CGRectGetHeight(buttonFrame));
+	[textFieldButton setTitle:@"Default with Text Field" forState:UIControlStateNormal];
+	[textFieldButton addTarget:self action:@selector(showDialogWithTextField) forControlEvents:UIControlEventTouchUpInside];
+	[self.view addSubview:textFieldButton];
+	buttonYOffset += CGRectGetHeight(textFieldButton.frame) + buttonPad;
 }
 
 - (void)viewDidAppear:(BOOL)animated {
 	
-	URBAlertView *alertView = [URBAlertView dialogWithTitle:@"Test Dialog" subtitle:@"This is just a test dialog"];
-	alertView.blurBackground = NO;
+	URBAlertView *alertView = [URBAlertView dialogWithTitle:@"Test Alert" message:@"This is just a test dialog. Say something important here."];
 	[alertView addButtonWithTitle:@"Close"];
 	[alertView addButtonWithTitle:@"OK"];
 	[alertView setHandlerBlock:^(NSInteger buttonIndex, URBAlertView *alertView) {
@@ -106,6 +112,20 @@
 
 - (void)showDialogWithSlide {
 	[self.alertView showWithAnimation:URBAlertAnimationSlideLeft];
+}
+
+- (void)showDialogWithTextField {
+	URBAlertView *textAlertView = [URBAlertView dialogWithTitle:@"Test Alert" message:@"This is just a test dialog with a text field for the user to enter some data into."];
+	[textAlertView addButtonWithTitle:@"Close"];
+	[textAlertView addButtonWithTitle:@"OK"];
+	[textAlertView addTextFieldWithPlaceholder:@"Testing" secure:NO];
+	[textAlertView setHandlerBlock:^(NSInteger buttonIndex, URBAlertView *alertView) {
+		NSLog(@"button tapped: index=%i, text=%@", buttonIndex, [alertView textForTextFieldAtIndex:0]);
+		[alertView hideWithCompletionBlock:^{
+			// stub
+		}];
+	}];
+	[textAlertView showWithAnimation:URBAlertAnimationDefault];
 }
 
 @end

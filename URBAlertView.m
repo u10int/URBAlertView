@@ -31,10 +31,15 @@
 @interface URBAlertViewButton : UIButton
 @end
 
+@interface URBAlertViewTextField : UITextField
+@end
+
 @interface URBAlertView ()
+@property (nonatomic, strong) UIImageView *backgroundView;
+@property (nonatomic, strong) UILabel *titleLabel;
+@property (nonatomic, strong) UILabel *messageLabel;
 @property (nonatomic, strong) NSMutableArray *buttons;
-@property (nonatomic, strong) UIFont *titleFont;
-@property (nonatomic, strong) UIFont *subtitleFont;
+@property (nonatomic, strong) NSMutableArray *textFields;
 @property (nonatomic, strong) URBAlertWindowOverlay *overlay;
 @property (nonatomic, assign) URBAlertAnimation animationType;
 @property (nonatomic, strong) URBAlertViewBlock block;
@@ -45,29 +50,37 @@
 - (void)showOverlay:(BOOL)show;
 - (void)buttonTapped:(id)button;
 - (UIView *)blurredBackground;
+- (UIImage *)defaultBackgroundImage;
+- (void)layoutComponents;
+- (void)setTextAttributes:(NSDictionary *)textAttributes forLabel:(UILabel *)label;
 - (void)cleanup;
 @end
 
 #define kURBAlertBackgroundRadius 10.0
 #define kURBAlertFrameInset 7.0
-#define kURBAlertPadding 10.0
+#define kURBAlertPadding 8.0
 #define kURBAlertButtonPadding 6.0
 #define kURBAlertButtonHeight 44.0
 #define kURBAlertButtonOffset 66.5
+#define kURBAlertTextFieldHeight 29.0
+
+static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 
 @implementation URBAlertView {
 @private
 	struct {
 		CGRect titleRect;
-		CGRect subtitleRect;
+		CGRect messageRect;
 		CGRect buttonRect;
+		CGRect buttonRegionRect;
+		CGRect textFieldsRect;
 	} layout;
 }
 
 #pragma mark - Class methods
 
-+ (URBAlertView *)dialogWithTitle:(NSString *)title subtitle:(NSString *)subtitle {
-	return [[URBAlertView alloc] initWithTitle:title subtitle:subtitle];
++ (URBAlertView *)dialogWithTitle:(NSString *)title message:(NSString *)message {
+	return [[URBAlertView alloc] initWithTitle:title message:message];
 }
 
 #pragma mark - init
@@ -75,26 +88,34 @@
 - (id)initWithFrame:(CGRect)frame {
 	self = [super initWithFrame:[self defaultFrame]];
 	if (self) {
-		self.titleFont = [UIFont boldSystemFontOfSize:18.0];
-		self.subtitleFont = [UIFont systemFontOfSize:14.0];
-		//self.titleFont = [UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:18.0];
-		//self.subtitleFont = [UIFont fontWithName:@"HelveticaNeue-Medium" size:14.0];
+		_titleFont = [UIFont boldSystemFontOfSize:18.0];
+		_messageFont = [UIFont systemFontOfSize:14.0];
+		_buttonFont = [UIFont fontWithName:self.titleFont.fontName size:16.0];
+		_backgroundImage = nil;
+
 		self.animationType = URBAlertAnimationDefault;
 		self.buttons = [NSMutableArray array];
+		self.textFields = [NSMutableArray array];
 		
 		self.opaque = NO;
 		self.alpha = 1.0;
 		self.darkenBackground = YES;
-		self.blurBackground = YES;
+		self.blurBackground = NO;
+		
+		// register for keyboard notifications
+		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
+		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
+		
+		[self build];
 	}
 	return self;
 }
 
-- (id)initWithTitle:(NSString *)title subtitle:(NSString *)subtitle {
-	self = [self init];
+- (id)initWithTitle:(NSString *)title message:(NSString *)message {
+	self = [self initWithFrame:CGRectZero];
 	if (self) {
 		self.title = title;
-		self.subtitle = subtitle;
+		self.message = message;
 	}
 	return self;
 }
@@ -103,18 +124,129 @@
 	self.block = block;
 }
 
-#pragma mark - Buttons
+- (void)setTitleFont:(UIFont *)titleFont {
+	if (titleFont != _titleFont) {
+		_titleFont = titleFont;
+		self.titleLabel.font = titleFont;
+	}
+}
+
+- (void)setMessageFont:(UIFont *)messageFont {
+	if (messageFont != _messageFont) {
+		_messageFont = messageFont;
+		self.messageLabel.font = messageFont;
+	}
+}
+
+- (void)setButtonFont:(UIFont *)buttonFont {
+	if (buttonFont != _buttonFont) {
+		_buttonFont = buttonFont;
+		[self.buttons enumerateObjectsUsingBlock:^(URBAlertViewButton *button, NSUInteger idx, BOOL *stop) {
+			button.titleLabel.font = buttonFont;
+		}];
+	}
+}
+
+- (void)setTitleTextAttributes:(NSDictionary *)textAttributes {
+	[self setTextAttributes:textAttributes forLabel:self.titleLabel];
+	self.titleFont = self.titleLabel.font;
+}
+
+- (void)setMessageTextAttributes:(NSDictionary *)textAttributes {
+	[self setTextAttributes:textAttributes forLabel:self.messageLabel];
+	self.messageFont = self.messageLabel.font;
+}
+
+- (void)setTextFieldTextAttributes:(NSDictionary *)textAttributes {
+	[self.textFields enumerateObjectsUsingBlock:^(URBAlertViewTextField *field, NSUInteger idx, BOOL *stop) {
+		[self setTextAttributes:textAttributes forLabel:(UILabel *)field];
+	}];
+}
+
+- (void)setButtonTextAttributes:(NSDictionary *)textAttributes forState:(UIControlState)state {
+	UIFont *font = [textAttributes objectForKey:UITextAttributeFont];
+	UIColor *textColor = [textAttributes objectForKey:UITextAttributeTextColor];
+	UIColor *textShadowColor = [textAttributes objectForKey:UITextAttributeTextShadowColor];
+	NSValue *shadowOffsetValue = [textAttributes objectForKey:UITextAttributeTextShadowOffset];
+	
+	[self.buttons enumerateObjectsUsingBlock:^(URBAlertViewButton *button, NSUInteger idx, BOOL *stop) {
+		if (font) {
+			button.titleLabel.font = font;
+		}
+		
+		if (textColor) {
+			[button setTitleColor:textColor forState:state];
+		}
+		
+		if (textShadowColor) {
+			[button setTitleShadowColor:textShadowColor forState:state];
+		}
+		
+		if (shadowOffsetValue) {
+			UIOffset shadowOffset = [shadowOffsetValue UIOffsetValue];
+			button.titleLabel.shadowOffset = CGSizeMake(shadowOffset.horizontal, shadowOffset.vertical);
+		}
+	}];
+}
+
+- (void)setTextAttributes:(NSDictionary *)textAttributes forLabel:(UILabel *)label {
+	UIFont *font = [textAttributes objectForKey:UITextAttributeFont];
+	UIColor *textColor = [textAttributes objectForKey:UITextAttributeTextColor];
+	UIColor *textShadowColor = [textAttributes objectForKey:UITextAttributeTextShadowColor];
+	NSValue *shadowOffsetValue = [textAttributes objectForKey:UITextAttributeTextShadowOffset];
+	
+	if (font) {
+		label.font = font;
+	}
+	
+	if (textColor) {
+		label.textColor = textColor;
+	}
+	
+	if (textShadowColor) {
+		label.shadowColor = textShadowColor;
+	}
+	
+	if (shadowOffsetValue) {
+		UIOffset shadowOffset = [shadowOffsetValue UIOffsetValue];
+		label.shadowOffset = CGSizeMake(shadowOffset.horizontal, shadowOffset.vertical);
+	}
+}
+
+#pragma mark - Buttons and Text Fields
 
 - (NSInteger)addButtonWithTitle:(NSString *)title {	
 	// convert button over to internal button
 	URBAlertViewButton *button = [[URBAlertViewButton alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, kURBAlertButtonHeight)];
 	[button setTitle:title forState:UIControlStateNormal];
 	[button addTarget:self action:@selector(buttonTapped:) forControlEvents:UIControlEventTouchUpInside];
-	button.titleLabel.font = [UIFont fontWithName:self.titleFont.fontName size:16.0];
+	button.titleLabel.font = self.buttonFont;
 	
 	[self.buttons addObject:button];
 	
 	return [self.buttons indexOfObject:button];
+}
+
+- (void)addTextFieldWithPlaceholder:(NSString *)placeholder secure:(BOOL)secure {
+	for (UITextField *field in self.textFields) {
+		field.returnKeyType = UIReturnKeyNext;
+	}
+	
+	URBAlertViewTextField *field = [[URBAlertViewTextField alloc] initWithFrame:CGRectMake(0, 0, 200.0, kURBAlertTextFieldHeight)];
+	field.returnKeyType = UIReturnKeyDone;
+	field.placeholder = placeholder;
+	field.secureTextEntry = secure;
+	field.font = self.messageFont;
+	field.textColor = [UIColor blackColor];
+	field.contentVerticalAlignment = UIControlContentVerticalAlignmentCenter;
+	field.keyboardAppearance = UIKeyboardAppearanceAlert;
+	field.delegate = self;
+	
+	[self.textFields addObject:field];
+}
+
+- (NSString *)textForTextFieldAtIndex:(NSUInteger)index {
+	return ((UITextField *)[self.textFields objectAtIndex:index]).text;
 }
 
 #pragma mark - Animations
@@ -157,43 +289,119 @@
 
 #pragma mark - Drawing
 
-- (void)layoutSubviews {
+- (void)build {
 	[super layoutSubviews];
 	
+	if (!self.contentView) {
+		self.contentView = [[UIView alloc] initWithFrame:CGRectZero];
+		self.contentView.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+		[self addSubview:self.contentView];
+	}
+	
+	if (!self.backgroundView) {
+		self.backgroundView = [[UIImageView alloc] initWithFrame:self.bounds];
+		_backgroundView.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+		[self insertSubview:self.backgroundView atIndex:0];
+	}
+	
+	if (!self.titleLabel) {
+		self.titleLabel = [[UILabel alloc] initWithFrame:self.bounds];
+		_titleLabel.backgroundColor = [UIColor clearColor];
+		_titleLabel.font = self.titleFont;
+		_titleLabel.textAlignment = UITextAlignmentCenter;
+		_titleLabel.textColor = [UIColor whiteColor];
+		_titleLabel.numberOfLines = 0;
+		[self.contentView addSubview:self.titleLabel];
+	}
+	
+	if (!self.messageLabel) {
+		self.messageLabel = [[UILabel alloc] initWithFrame:self.bounds];
+		_messageLabel.backgroundColor = [UIColor clearColor];
+		_messageLabel.font = self.messageFont;
+		_messageLabel.textAlignment = UITextAlignmentCenter;
+		_messageLabel.textColor = [UIColor whiteColor];
+		_messageLabel.numberOfLines = 0;
+		[self.contentView addSubview:self.messageLabel];
+	}
+	
+	self.layer.shadowColor = [UIColor blackColor].CGColor;
+	self.layer.shadowOpacity = 0.8;
+	self.layer.shadowOffset = CGSizeMake(0, 1.0);
+	self.layer.shadowRadius = 5.0;
+}
+
+- (void)layoutComponents {
 	CGFloat layoutFrameInset = kURBAlertFrameInset + kURBAlertPadding;
 	CGRect layoutFrame = CGRectInset(self.bounds, layoutFrameInset, layoutFrameInset);
 	CGFloat layoutWidth = CGRectGetWidth(layoutFrame);
 	
+	self.contentView.frame = layoutFrame;
+	
 	// title frame
 	CGFloat titleHeight = 0;
-	CGFloat minY = CGRectGetMinY(layoutFrame);
+	CGFloat minY = 0;
 	if (self.title.length > 0) {
 		titleHeight = [self.title sizeWithFont:self.titleFont constrainedToSize:CGSizeMake(layoutWidth, MAXFLOAT) lineBreakMode:NSLineBreakByWordWrapping].height;
 		minY += kURBAlertPadding;
 	}
-	layout.titleRect = CGRectMake(CGRectGetMinX(layoutFrame), minY, layoutWidth, titleHeight);
+	layout.titleRect = CGRectMake(0, minY, layoutWidth, titleHeight);
+	self.titleLabel.frame = layout.titleRect;
+	self.titleLabel.text = self.title;
 	
-	// subtitle frame
-	CGFloat subtitleHeight = 0;
+	// message frame
+	CGFloat messageHeight = 0;
 	minY = CGRectGetMaxY(layout.titleRect);
-	if (self.subtitle.length > 0) {
-		subtitleHeight = [self.subtitle sizeWithFont:self.subtitleFont constrainedToSize:CGSizeMake(layoutWidth, MAXFLOAT) lineBreakMode:NSLineBreakByWordWrapping].height;
+	if (self.message.length > 0) {
+		messageHeight = [self.message sizeWithFont:self.messageFont constrainedToSize:CGSizeMake(layoutWidth, MAXFLOAT) lineBreakMode:NSLineBreakByWordWrapping].height;
 		minY += kURBAlertPadding;
 	}
-	layout.subtitleRect = CGRectMake(CGRectGetMinX(layoutFrame), minY, layoutWidth, subtitleHeight);
+	layout.messageRect = CGRectMake(0, minY, layoutWidth, messageHeight);
+	self.messageLabel.frame = layout.messageRect;
+	self.messageLabel.text = self.message;
+	
+	// text fields frame
+	CGFloat textFieldsHeight = 0;
+	NSUInteger totalFields = self.textFields.count;
+	minY = CGRectGetMaxY(layout.messageRect);
+	if (totalFields > 0) {
+		textFieldsHeight = kURBAlertTextFieldHeight * (CGFloat)totalFields + kURBAlertPadding * (CGFloat)totalFields;
+		minY += kURBAlertPadding;
+	}
+	layout.textFieldsRect = CGRectMake(kURBAlertPadding, minY, layoutWidth - kURBAlertPadding * 2, textFieldsHeight);
+	
+	// reset main frame based on title and message heights and set background frame and image
+	self.frame = CGRectMake(0, 0, CGRectGetWidth(self.bounds), CGRectGetMaxY(layout.textFieldsRect) + kURBAlertPadding + kURBAlertButtonOffset + layoutFrameInset);
+	self.backgroundView.frame = self.bounds;
+	layout.buttonRegionRect = CGRectMake(0, CGRectGetHeight(self.bounds) - kURBAlertButtonOffset, CGRectGetWidth(self.bounds), kURBAlertButtonOffset);
+	
+	self.backgroundView.image = (self.backgroundImage) ? self.backgroundImage : [self defaultBackgroundImage];
 	
 	// buttons frame
 	CGFloat buttonsHeight = 0;
-	minY = CGRectGetMaxY(layout.subtitleRect);
+	CGFloat buttonRegionPadding = ((kURBAlertButtonOffset - kURBAlertFrameInset) - kURBAlertButtonHeight) / 2.0 - 2.0;
+	minY = CGRectGetMinY(layout.buttonRegionRect) + buttonRegionPadding;
 	if (self.buttons.count > 0) {
 		buttonsHeight = kURBAlertButtonHeight;
 		minY += kURBAlertPadding;
 	}
-	CGFloat buttonRegionPadding = ((kURBAlertButtonOffset - kURBAlertFrameInset) - kURBAlertButtonHeight) / 2.0 - 2.0;
-	layout.buttonRect = CGRectMake(CGRectGetMinX(layoutFrame), CGRectGetMaxY(self.bounds) - kURBAlertButtonOffset + buttonRegionPadding, layoutWidth, buttonsHeight);
-	
+	layout.buttonRect = CGRectMake(CGRectGetMinX(layoutFrame), CGRectGetMinY(layout.buttonRegionRect) + buttonRegionPadding, layoutWidth, buttonsHeight);	
 	// adjust layout frame
 	layoutFrame.size.height = CGRectGetMaxY(layout.buttonRect);
+	
+	// layout textfields
+	NSUInteger fieldCount = self.textFields.count;
+	if (fieldCount > 0) {
+		for (int i = 0; i < fieldCount; i++) {
+			CGFloat yOffset = CGRectGetMinY(layout.textFieldsRect) + (kURBAlertButtonPadding + kURBAlertTextFieldHeight) * (CGFloat)i;
+			CGRect frame = CGRectIntegral(CGRectMake(CGRectGetMinX(layout.textFieldsRect), yOffset, CGRectGetWidth(layout.textFieldsRect), kURBAlertTextFieldHeight));
+			
+			UITextField *field = (UITextField *)[self.textFields objectAtIndex:i];
+			field.frame = frame;
+			field.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+			
+			[self.contentView addSubview:field];
+		}
+	}
 	
 	// layout buttons
 	NSUInteger count = self.buttons.count;
@@ -205,7 +413,7 @@
 			
 			URBAlertViewButton *button = (URBAlertViewButton *)[self.buttons objectAtIndex:i];
 			button.frame = frame;
-			button.autoresizingMask = UIViewAutoresizingFlexibleBottomMargin;
+			button.autoresizingMask = UIViewAutoresizingFlexibleTopMargin;
 			
 			[self addSubview:button];
 		}
@@ -213,30 +421,54 @@
 	
 	UIWindow *window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
 	CGRect dialogFrame = self.frame;
-	dialogFrame.size = self.bounds.size;
 	dialogFrame.origin.x = (CGRectGetWidth(window.bounds) - CGRectGetWidth(dialogFrame)) / 2.0;
 	dialogFrame.origin.y = (CGRectGetHeight(window.bounds) - CGRectGetHeight(dialogFrame)) / 2.0;
 	self.frame = CGRectIntegral(dialogFrame);
-	
-	[self setNeedsDisplay];
 }
 
-- (void)drawRect:(CGRect)rect {
+- (void)keyboardWillShow:(NSNotification *)note {
+	NSValue *value = [[note userInfo] objectForKey:UIKeyboardFrameEndUserInfoKey];
+	CGRect frame = [value CGRectValue];
+	
+	[self adjustToKeyboardBounds:frame];
+}
+
+- (void)keyboardWillHide:(NSNotification *)note {
+	[self adjustToKeyboardBounds:CGRectZero];
+}
+
+- (void)adjustToKeyboardBounds:(CGRect)bounds {
+	CGRect screenBounds = [[UIScreen mainScreen] bounds];
+	CGFloat height = CGRectGetHeight(screenBounds) - CGRectGetHeight(bounds);
+	CGRect frame = self.frame;
+	frame.origin.y = (height - CGRectGetHeight(self.bounds)) / 2.0;
+	
+	if (CGRectGetMinY(frame) < 0) {
+		NSLog(@"warning: dialog is clipped, origin negative (%f)", CGRectGetMinY(frame));
+	}
+	
+	[UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
+		self.frame = frame;
+	} completion:^(BOOL finished) {
+		// stub
+	}];
+}
+
+- (UIImage *)defaultBackgroundImage {
+	UIGraphicsBeginImageContextWithOptions(self.bounds.size, NO, 0);
 	
 	CGContextRef context = UIGraphicsGetCurrentContext();
 	
-	/// Dialog Background Drawing ///
-	
 	// base shape
 	CGRect activeBounds = self.bounds;
-	CGFloat cornerRadius = kURBAlertBackgroundRadius;	
+	CGFloat cornerRadius = kURBAlertBackgroundRadius;
 	CGRect pathFrame = CGRectInset(self.bounds, kURBAlertFrameInset, kURBAlertFrameInset);
 	CGPathRef path = [UIBezierPath bezierPathWithRoundedRect:pathFrame cornerRadius:cornerRadius].CGPath;
 	
 	// fill and drop shadow
 	CGContextAddPath(context, path);
 	CGContextSetFillColorWithColor(context, [UIColor colorWithRed:210.0f/255.0f green:210.0f/255.0f blue:210.0f/255.0f alpha:1.0f].CGColor);
-	CGContextSetShadowWithColor(context, CGSizeMake(0.0f, 1.0f), 6.0f, [UIColor colorWithRed:0.0f/255.0f green:0.0f/255.0f blue:0.0f/255.0f alpha:1.0f].CGColor);
+	//CGContextSetShadowWithColor(context, CGSizeMake(0.0f, 1.0f), 6.0f, [UIColor colorWithRed:0.0f/255.0f green:0.0f/255.0f blue:0.0f/255.0f alpha:1.0f].CGColor);
 	CGContextDrawPath(context, kCGPathFill);
 	
 	// clip context to main shape
@@ -311,26 +543,14 @@
 	CGContextSetShadowWithColor(context, CGSizeMake(0.0f, 0.0f), 0.0f, [UIColor colorWithRed:0.0f/255.0f green:0.0f/255.0f blue:0.0f/255.0f alpha:0.1f].CGColor);
 	CGContextDrawPath(context, kCGPathStroke);
 	
+	UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+	UIGraphicsEndImageContext();
 	
-	/// Text Drawing ///
+	CGFloat topCap = CGRectGetMidY(activeBounds) - 10.0;
+	CGFloat bottomCap = kURBAlertButtonOffset;
+	CGFloat leftCap = CGRectGetMidX(activeBounds) - 10.0;
 	
-	// draw title
-	if (self.title.length > 0) {
-		CGContextSaveGState(context);
-		CGContextSetShadowWithColor(context, CGSizeMake(0.0, -1.0), 0.0, [UIColor blackColor].CGColor);
-		[[UIColor whiteColor] set];
-		[self.title drawInRect:layout.titleRect withFont:self.titleFont lineBreakMode:NSLineBreakByTruncatingTail alignment:NSTextAlignmentCenter];
-		CGContextRestoreGState(context);
-	}
-	
-	// draw subtitle
-	if (self.subtitle.length > 0) {
-		CGContextSaveGState(context);
-		CGContextSetShadowWithColor(context, CGSizeMake(0.0, -1.0), 0.0, [UIColor blackColor].CGColor);
-		[[UIColor whiteColor] set];
-		[self.subtitle drawInRect:layout.subtitleRect withFont:self.subtitleFont lineBreakMode:NSLineBreakByWordWrapping alignment:NSTextAlignmentCenter];
-		CGContextRestoreGState(context);
-	}	
+	return [image resizableImageWithCapInsets:UIEdgeInsetsMake(topCap, leftCap, bottomCap, leftCap)];
 }
 
 #pragma mark - Private
@@ -338,7 +558,7 @@
 - (CGRect)defaultFrame {
 	CGRect appFrame = [[UIScreen mainScreen] applicationFrame];
 	// keep alert view in center of app frame
-	CGRect insetFrame = CGRectIntegral(CGRectInset(appFrame, (appFrame.size.width - 280.0) / 2, (appFrame.size.height - 180.0) / 2));
+	CGRect insetFrame = CGRectIntegral(CGRectInset(appFrame, (appFrame.size.width - kURBAlertViewDefaultSize.width) / 2, (appFrame.size.height - kURBAlertViewDefaultSize.height) / 2));
 	
 	return insetFrame;
 }
@@ -362,7 +582,8 @@
 	// especially with the buttons
 	if (show) {
 		[self setNeedsLayout];
-		[self layoutIfNeeded];
+		//[self layoutIfNeeded];
+		[self layoutComponents];
 	}
 	
 	// fade animation
@@ -631,6 +852,23 @@
 	[[[[UIApplication sharedApplication] delegate] window] makeKeyWindow];
 }
 
+#pragma mark - UITextFieldDelegate
+
+- (BOOL)textFieldShouldReturn:(UITextField *)textField {
+	NSUInteger index = [self.textFields indexOfObject:textField];
+	NSUInteger count = self.textFields.count;
+	
+	if (index < (count - 1)) {
+		UITextField *nextField = [self.textFields objectAtIndex:index + 1];
+		[nextField becomeFirstResponder];
+	}
+	else {
+		[textField resignFirstResponder];
+	}
+	
+	return YES;
+}
+
 @end
 
 
@@ -767,6 +1005,80 @@
     UIGraphicsEndImageContext();
 	
     return [image resizableImageWithCapInsets:UIEdgeInsetsMake(0.0, 6.0, 0.0, 6.0)];
+}
+
+@end
+
+
+#pragma mark - URBAlertViewTextField
+
+@implementation URBAlertViewTextField
+
+- (CGRect)textRectForBounds:(CGRect)bounds {
+	return CGRectInset(bounds, 4.0, 4.0);
+}
+
+- (CGRect)editingRectForBounds:(CGRect)bounds {
+	return [self textRectForBounds:bounds];
+}
+
+- (void)drawRect:(CGRect)rect {
+	// General Declarations
+	CGContextRef context = UIGraphicsGetCurrentContext();
+	CGContextSaveGState(context);
+	
+	// Color Declarations
+	UIColor *white10 = [UIColor colorWithWhite:1.0 alpha:0.1];
+	UIColor *grey40 = [UIColor colorWithWhite:0.4 alpha:1.0];
+	
+	// Shadow Declarations
+	CGColorRef innerShadow = grey40.CGColor;
+	CGSize innerShadowOffset = CGSizeMake(0, 2);
+	CGFloat innerShadowBlurRadius = 2;
+	CGColorRef outerShadow = white10.CGColor;
+	CGSize outerShadowOffset = CGSizeMake(0, 1);
+	CGFloat outerShadowBlurRadius = 0;
+	
+	// Rectangle Drawing
+	UIBezierPath *rectanglePath = [UIBezierPath bezierPathWithRect: CGRectIntegral(rect)];
+	CGContextSaveGState(context);
+	CGContextSetShadowWithColor(context, outerShadowOffset, outerShadowBlurRadius, outerShadow);
+	[[UIColor whiteColor] setFill];
+	[rectanglePath fill];
+	
+	// Rectangle Inner Shadow
+	CGRect rectangleBorderRect = CGRectInset([rectanglePath bounds], -innerShadowBlurRadius, -innerShadowBlurRadius);
+	rectangleBorderRect = CGRectOffset(rectangleBorderRect, -innerShadowOffset.width, -innerShadowOffset.height);
+	rectangleBorderRect = CGRectInset(CGRectUnion(rectangleBorderRect, [rectanglePath bounds]), -1, -1);
+	
+	UIBezierPath* rectangleNegativePath = [UIBezierPath bezierPathWithRect: rectangleBorderRect];
+	[rectangleNegativePath appendPath: rectanglePath];
+	rectangleNegativePath.usesEvenOddFillRule = YES;
+	
+	CGContextSaveGState(context);
+	{
+		CGFloat xOffset = innerShadowOffset.width + round(rectangleBorderRect.size.width);
+		CGFloat yOffset = innerShadowOffset.height;
+		CGContextSetShadowWithColor(context,
+									CGSizeMake(xOffset + copysign(0.1, xOffset), yOffset + copysign(0.1, yOffset)),
+									innerShadowBlurRadius,
+									innerShadow);
+		
+		[rectanglePath addClip];
+		CGAffineTransform transform = CGAffineTransformMakeTranslation(-round(rectangleBorderRect.size.width), 0);
+		[rectangleNegativePath applyTransform: transform];
+		[[UIColor grayColor] setFill];
+		[rectangleNegativePath fill];
+	}
+	
+	CGContextRestoreGState(context);
+	CGContextRestoreGState(context);
+	
+	[[UIColor blackColor] setStroke];
+	rectanglePath.lineWidth = 1;
+	[rectanglePath stroke];
+	
+	CGContextRestoreGState(context);
 }
 
 @end
