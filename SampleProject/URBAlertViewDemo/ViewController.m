@@ -18,11 +18,31 @@
 - (void)viewDidLoad {
 	[super viewDidLoad];
 	
+//	NSValue *shadowOffset = [NSValue valueWithUIOffset:UIOffsetMake(0.0, 1.0)];
+//	NSDictionary *titleTextAttributes = @{UITextAttributeFont:[UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:18.0f], UITextAttributeTextColor:[UIColor colorWithWhite:0.1 alpha:1.0],
+//									   UITextAttributeTextShadowColor:[UIColor whiteColor], UITextAttributeTextShadowOffset:shadowOffset};
+//	NSDictionary *messageTextAttributes = @{UITextAttributeFont:[UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:14.0f], UITextAttributeTextColor:[UIColor colorWithWhite:0.3 alpha:1.0],
+//										 UITextAttributeTextShadowColor:[UIColor whiteColor], UITextAttributeTextShadowOffset:shadowOffset};
+//	NSDictionary *buttonTextAttributes = @{UITextAttributeFont:[UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:18.0f], UITextAttributeTextColor:[UIColor colorWithWhite:0.1 alpha:1.0],
+//										 UITextAttributeTextShadowColor:[UIColor whiteColor], UITextAttributeTextShadowOffset:shadowOffset};
+//	NSDictionary *cancelButtonTextAttributes = @{UITextAttributeFont:[UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:18.0f], UITextAttributeTextColor:[UIColor colorWithWhite:0.5 alpha:1.0],
+//										UITextAttributeTextShadowColor:[UIColor whiteColor], UITextAttributeTextShadowOffset:shadowOffset};
+//	[[URBAlertView appearance] setBackgroundColor:[UIColor colorWithWhite:0.9 alpha:1.0]];
+//	[[URBAlertView appearance] setBackgroundGradation:0.05];
+//	[[URBAlertView appearance] setStrokeColor:[UIColor colorWithWhite:0.35 alpha:1.0]];
+//	[[URBAlertView appearance] setStrokeWidth:3.0];
+//	[[URBAlertView appearance] setTitleTextAttributes:titleTextAttributes];
+//	[[URBAlertView appearance] setMessageTextAttributes:messageTextAttributes];
+//	[[URBAlertView appearance] setButtonBackgroundColor:[UIColor colorWithWhite:0.8 alpha:1.0]];
+//	[[URBAlertView appearance] setButtonStrokeColor:[UIColor colorWithWhite:0.65 alpha:1.0]];
+//	[[URBAlertView appearance] setButtonTextAttributes:buttonTextAttributes forState:UIControlStateNormal];
+//	[[URBAlertView appearance] setCancelButtonTextAttributes:cancelButtonTextAttributes forState:UIControlStateNormal];
+	
 	self.view.backgroundColor = [UIColor whiteColor];
 	
 	CGFloat buttonPad = 10.0f;
 	CGFloat buttonWidth = self.view.bounds.size.width - buttonPad * 2;
-	CGFloat buttonYOffset = (self.view.bounds.size.height - buttonPad * 7 - 44.0 * 6) / 2.0;
+	CGFloat buttonYOffset = (self.view.bounds.size.height - buttonPad * 7 - 44.0 * 8) / 2.0;
 	CGRect buttonFrame = CGRectMake(buttonPad, 0, buttonWidth, 44.0);
 	
 	UIButton *defaultButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
@@ -73,13 +93,23 @@
 	[textFieldButton addTarget:self action:@selector(showDialogWithTextField) forControlEvents:UIControlEventTouchUpInside];
 	[self.view addSubview:textFieldButton];
 	buttonYOffset += CGRectGetHeight(textFieldButton.frame) + buttonPad;
+	
+	UIButton *multipleButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+	multipleButton.frame = CGRectMake(CGRectGetMinX(buttonFrame), buttonYOffset, CGRectGetWidth(buttonFrame), CGRectGetHeight(buttonFrame));
+	[multipleButton setTitle:@"Default with Multiple Buttons" forState:UIControlStateNormal];
+	[multipleButton addTarget:self action:@selector(showDialogWithMultipleButtons) forControlEvents:UIControlEventTouchUpInside];
+	[self.view addSubview:multipleButton];
+	buttonYOffset += CGRectGetHeight(multipleButton.frame) + buttonPad;
 }
 
 - (void)viewDidAppear:(BOOL)animated {
 	
-	URBAlertView *alertView = [URBAlertView dialogWithTitle:@"Test Alert" message:@"This is just a test dialog. Say something important here."];
-	[alertView addButtonWithTitle:@"Close"];
-	[alertView addButtonWithTitle:@"OK"];
+	URBAlertView *alertView = [[URBAlertView alloc] initWithTitle:@"Test Alert"
+														  message:@"This is just a test dialog. Say something important here."
+												cancelButtonTitle:@"Cancel"
+												otherButtonTitles: @"OK", nil];
+//	[alertView addButtonWithTitle:@"Close"];
+//	[alertView addButtonWithTitle:@"OK"];
 	[alertView setHandlerBlock:^(NSInteger buttonIndex, URBAlertView *alertView) {
 		NSLog(@"button tapped: index=%i", buttonIndex);
 		[self.alertView hideWithCompletionBlock:^{
@@ -126,6 +156,15 @@
 		}];
 	}];
 	[textAlertView showWithAnimation:URBAlertAnimationDefault];
+}
+
+- (void)showDialogWithMultipleButtons {
+	URBAlertView *multiAlertView = [[URBAlertView alloc] initWithTitle:@"Select Option" message:@"Select the option you wish to proceed with." cancelButtonTitle:@"Cancel" otherButtonTitles:@"Option 1", @"Option 2", @"Option 3", nil];
+	[multiAlertView setHandlerBlock:^(NSInteger buttonIndex, URBAlertView *alertView) {
+		NSLog(@"button tapped: index=%i", buttonIndex);
+		[alertView hide];
+	}];
+	[multiAlertView show];
 }
 
 @end
