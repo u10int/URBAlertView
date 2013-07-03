@@ -685,11 +685,11 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 			self.alpha = 0.0f;
 			self.transform = CGAffineTransformScale(transform, 0.7, 0.7);
 			
-			[UIView animateWithDuration:0.2 animations:^{
+			[UIView animateWithDuration:0.18 animations:^{
 				self.transform = CGAffineTransformScale(transform, 1.1, 1.1);
 				self.alpha = 1.0f;
 			} completion:^(BOOL finished) {
-				[UIView animateWithDuration:0.15 animations:^{
+				[UIView animateWithDuration:0.13 animations:^{
 					self.transform = CGAffineTransformScale(transform, 0.9, 0.9);
 				} completion:^(BOOL finished) {
 					[UIView animateWithDuration:0.1 animations:^{
@@ -705,10 +705,10 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 		else {
 			[self showOverlay:NO];
 			
-			[UIView animateWithDuration:0.15 animations:^{
+			[UIView animateWithDuration:0.13 animations:^{
 				self.transform = CGAffineTransformScale(transform, 1.1, 1.1);
 			} completion:^(BOOL finished) {
-				[UIView animateWithDuration:0.2 animations:^{
+				[UIView animateWithDuration:0.18 animations:^{
 					self.transform = CGAffineTransformScale(transform, 0.7, 0.7);
 					self.alpha = 0.0f;
 				} completion:^(BOOL finished) {
