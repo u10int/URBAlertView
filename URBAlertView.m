@@ -174,6 +174,7 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	_messageShadowOffset = CGSizeMake(0.0, -1.0);
 	
 	_buttonBackgroundColor = [UIColor colorWithWhite:0.35 alpha:1.0];
+	[self updateBackgroundGradient];
 		
 	self.animationType = URBAlertAnimationDefault;
 	self.buttons = [NSMutableArray array];
