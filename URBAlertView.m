@@ -49,6 +49,8 @@ typedef NSUInteger URBAlertViewButtonType;
 @interface URBAlertViewTextField : UITextField
 @end
 
+typedef void (^URBAnimationBlock)();
+
 @interface URBAlertView ()
 @property (nonatomic, strong) UIImageView *backgroundView;
 @property (nonatomic, strong) URBAlertViewButton *cancelButton;
@@ -90,6 +92,10 @@ typedef NSUInteger URBAlertViewButtonType;
 static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 
 @implementation URBAlertView {
+	UIInterfaceOrientation _currentOrientation;
+	CGFloat _keyboardHeight;
+	BOOL _hasLaidOut;
+	
 @private
 	struct {
 		CGRect titleRect;
@@ -178,9 +184,17 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	self.darkenBackground = YES;
 	self.blurBackground = NO;
 	
+	_hasLaidOut = NO;
+	
+	// register for device orientation changes
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(deviceOrientationChanged:) name:UIDeviceOrientationDidChangeNotification object:nil];
+	
 	// register for keyboard notifications
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
+	
+	// register with the device that we want to know when the device orientation changes
+	[[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
 	
 	[self build];
 }
@@ -477,6 +491,223 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	[self animateWithType:animation show:NO completionBlock:completion];
 }
 
+- (void)animateWithType:(URBAlertAnimation)animation show:(BOOL)show completionBlock:(void (^)())completion {
+	
+	if (show)
+		_currentOrientation = [UIApplication sharedApplication].statusBarOrientation;
+	
+	// fade animation
+	if (animation == URBAlertAnimationFade) {
+		if (show) {
+			[self showOverlay:YES];
+			
+			self.transform = CGAffineTransformMakeScale(0.97, 0.97);
+			[UIView animateWithDuration:0.15 animations:^{
+				self.transform = CGAffineTransformIdentity;
+				self.alpha = 1.0f;
+			} completion:^(BOOL finished) {
+				[self alertViewDidShow];
+				if (completion)
+					completion();
+			}];
+		}
+		else {
+			[self showOverlay:NO];
+			
+			[UIView animateWithDuration:0.15 animations:^{
+				self.transform = CGAffineTransformMakeScale(0.97, 0.97);
+				self.alpha = 0.0f;
+			} completion:^(BOOL finished) {
+				[self cleanup];
+				if (completion)
+					completion();
+			}];
+		}
+	}
+	
+	// horizontal flip animation
+	else if (animation == URBAlertAnimationFlipHorizontal || animation == URBAlertAnimationFlipVertical) {
+		
+		CGFloat xAxis = (animation == URBAlertAnimationFlipVertical) ? 1.0 : 0.0;
+		CGFloat yAxis = (animation == URBAlertAnimationFlipHorizontal) ? 1.0 : 0.0;
+		
+		if (show) {
+			self.layer.zPosition = 100;
+			
+			CATransform3D perspectiveTransform = CATransform3DIdentity;
+			perspectiveTransform.m34 = 1.0 / -500;
+			
+			// initial starting rotation
+			self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(70.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
+			self.alpha = 0.0f;
+			
+			[self showOverlay:YES];
+			
+			[UIView animateWithDuration:0.2 animations:^{ // flip remaining + bounce
+				self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(-25.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
+				self.alpha = 1.0f;
+			} completion:^(BOOL finished) {
+				[UIView animateWithDuration:0.13 animations:^{
+					self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(12.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
+				} completion:^(BOOL finished) {
+					[UIView animateWithDuration:0.1 animations:^{
+						self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(-8.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
+					} completion:^(BOOL finished) {
+						[UIView animateWithDuration:0.1 animations:^{
+							self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(0.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
+						} completion:^(BOOL finished) {
+							[self alertViewDidShow];
+							if (completion)
+								completion();
+						}];
+					}];
+				}];
+			}];
+		}
+		else {
+			[self showOverlay:NO];
+			
+			self.layer.zPosition = 100;
+			self.alpha = 1.0f;
+			
+			CATransform3D perspectiveTransform = CATransform3DIdentity;
+			perspectiveTransform.m34 = 1.0 / -500;
+			
+			[UIView animateWithDuration:0.08 animations:^{
+				self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(-10.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
+			} completion:^(BOOL finished) {
+				[UIView animateWithDuration:0.17 animations:^{
+					self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(70.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
+					self.alpha = 0.0f;
+				} completion:^(BOOL finished) {
+					[self cleanup];
+					if (completion)
+						completion();
+				}];
+			}];
+		}
+	}
+	
+	// tumble animation
+	else if (animation == URBAlertAnimationTumble) {
+		if (show) {
+			[self showOverlay:YES];
+			
+			CATransform3D rotate = CATransform3DMakeRotation(50.0 * M_PI / 180.0, 0.0, 0.0, 1.0);
+			CATransform3D translate = CATransform3DMakeTranslation(20.0, -500.0, 0.0);
+			self.layer.transform = CATransform3DConcat(rotate, translate);
+			
+			[UIView animateWithDuration:0.4 delay:0.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+				self.layer.transform = CATransform3DIdentity;
+			} completion:^(BOOL finished) {
+				[self alertViewDidShow];
+				if (completion)
+					completion();
+			}];
+		}
+		else {
+			[self showOverlay:NO];
+			
+			[UIView animateWithDuration:0.4 delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
+				CATransform3D rotate = CATransform3DMakeRotation(-50.0 * M_PI / 180.0, 0.0, 0.0, 1.0);
+				CATransform3D translate = CATransform3DMakeTranslation(-20.0, 500.0, 0.0);
+				self.layer.transform = CATransform3DConcat(rotate, translate);
+			} completion:^(BOOL finished) {
+				[self cleanup];
+				if (completion)
+					completion();
+			}];
+		}
+	}
+	
+	// slide animation
+	else if (animation == URBAlertAnimationSlideLeft || animation == URBAlertAnimationSlideRight) {
+		if (show) {
+			[self showOverlay:YES];
+			
+			CGFloat startX = (animation == URBAlertAnimationSlideLeft) ? 200.0 : -200.0;
+			CGFloat shiftX = 5.0;
+			if (animation == URBAlertAnimationSlideLeft)
+				shiftX *= -1.0;
+			
+			self.layer.transform = CATransform3DMakeTranslation(startX, 0.0, 0.0);
+			[UIView animateWithDuration:0.15 delay:0.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+				self.layer.transform = CATransform3DMakeTranslation(shiftX, 0.0, 0.0);
+			} completion:^(BOOL finished) {
+				[UIView animateWithDuration:0.1 animations:^{
+					self.layer.transform = CATransform3DIdentity;
+				} completion:^(BOOL finished) {
+					[self alertViewDidShow];
+					if (completion)
+						completion();
+				}];
+			}];
+		}
+		else {
+			[self showOverlay:NO];
+			
+			CGFloat finalX = (animation == URBAlertAnimationSlideLeft) ? -400.0 : 400.0;
+			CGFloat shiftX = 5.0;
+			if (animation == URBAlertAnimationSlideRight)
+				shiftX *= 1.0;
+			
+			[UIView animateWithDuration:0.1 animations:^{
+				self.layer.transform = CATransform3DMakeTranslation(shiftX, 0.0, 0.0);
+			} completion:^(BOOL finished) {
+				[UIView animateWithDuration:0.15 delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
+					self.layer.transform = CATransform3DMakeTranslation(finalX, 0.0, 0.0);
+				} completion:^(BOOL finished) {
+					[self cleanup];
+					if (completion)
+						completion();
+				}];
+			}];
+		}
+	}
+	
+	// default "pop" animation like UIAlertView
+	else {
+		if (show) {
+			[self showOverlay:YES];
+			
+			self.alpha = 0.0f;
+			self.layer.transform = CATransform3DMakeScale(0.7, 0.7, 1.0);
+			[UIView animateWithDuration:0.17 animations:^{
+				self.layer.transform = CATransform3DMakeScale(1.1, 1.1, 1.0);
+				self.alpha = 1.0f;
+			} completion:^(BOOL finished) {
+				[UIView animateWithDuration:0.12 animations:^{
+					self.layer.transform = CATransform3DMakeScale(0.9, 0.9, 1.0);
+				} completion:^(BOOL finished) {
+					[UIView animateWithDuration:0.1 animations:^{
+						self.layer.transform = CATransform3DIdentity;
+					} completion:^(BOOL finished) {
+						[self alertViewDidShow];
+						if (completion)
+							completion();
+					}];
+				}];
+			}];
+		}
+		else {
+			[self showOverlay:NO];
+			
+			[UIView animateWithDuration:0.1 animations:^{
+				self.layer.transform = CATransform3DMakeScale(1.1, 1.1, 1.0);
+			} completion:^(BOOL finished) {
+				[UIView animateWithDuration:0.15 animations:^{
+					self.layer.transform = CATransform3DIdentity;
+					self.alpha = 0.0f;
+				} completion:^(BOOL finished) {
+					[self cleanup];
+					if (completion)
+						completion();
+				}];
+			}];
+		}
+	}
+}
+
 #pragma mark - Drawing
 
 - (void)build {
@@ -497,6 +728,9 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 - (void)layoutSubviews {
 	[super layoutSubviews];	
 	[self layoutComponents];
+	
+	// rotation and position based on the new layout
+	[self reposition];
 }
 
 - (void)layoutComponents {
@@ -620,32 +854,6 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	dialogFrame.origin.x = (CGRectGetWidth(window.bounds) - CGRectGetWidth(dialogFrame)) / 2.0;
 	dialogFrame.origin.y = (CGRectGetHeight(window.bounds) - CGRectGetHeight(dialogFrame)) / 2.0;
 	self.frame = CGRectIntegral(dialogFrame);
-}
-
-- (void)keyboardWillShow:(NSNotification *)note {
-	NSValue *value = [[note userInfo] objectForKey:UIKeyboardFrameEndUserInfoKey];
-	CGRect frame = [value CGRectValue];
-	
-	[self adjustToKeyboardBounds:frame];
-}
-
-- (void)keyboardWillHide:(NSNotification *)note {
-	[self adjustToKeyboardBounds:CGRectZero];
-}
-
-- (void)adjustToKeyboardBounds:(CGRect)bounds {
-	CGRect screenBounds = [[UIScreen mainScreen] bounds];
-	CGFloat height = CGRectGetHeight(screenBounds) - CGRectGetHeight(bounds);
-	CGRect frame = self.frame;
-	frame.origin.y = (height - CGRectGetHeight(self.bounds)) / 2.0;
-	
-	if (CGRectGetMinY(frame) < 0) {
-		NSLog(@"warning: dialog is clipped, origin negative (%f)", CGRectGetMinY(frame));
-	}
-	
-	[UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
-		self.frame = frame;
-	} completion:nil];
 }
 
 - (void)drawRect:(CGRect)rect {
@@ -871,219 +1079,6 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	return blurredView;
 }
 
-- (void)animateWithType:(URBAlertAnimation)animation show:(BOOL)show completionBlock:(void (^)())completion {	
-	// fade animation
-	if (animation == URBAlertAnimationFade) {
-		if (show) {
-			[self showOverlay:YES];
-			
-			self.transform = CGAffineTransformMakeScale(0.97, 0.97);
-			[UIView animateWithDuration:0.15 animations:^{
-				self.transform = CGAffineTransformIdentity;
-				self.alpha = 1.0f;
-			} completion:^(BOOL finished) {
-				[self alertViewDidShow];
-				if (completion)
-					completion();
-			}];
-		}
-		else {
-			[self showOverlay:NO];
-			
-			[UIView animateWithDuration:0.15 animations:^{
-				self.transform = CGAffineTransformMakeScale(0.97, 0.97);
-				self.alpha = 0.0f;
-			} completion:^(BOOL finished) {
-				[self cleanup];
-				if (completion)
-					completion();
-			}];
-		}
-	}
-	
-	// horizontal flip animation
-	else if (animation == URBAlertAnimationFlipHorizontal || animation == URBAlertAnimationFlipVertical) {
-		
-		CGFloat xAxis = (animation == URBAlertAnimationFlipVertical) ? 1.0 : 0.0;
-		CGFloat yAxis = (animation == URBAlertAnimationFlipHorizontal) ? 1.0 : 0.0;
-		
-		if (show) {
-			self.layer.zPosition = 100;
-			
-			CATransform3D perspectiveTransform = CATransform3DIdentity;
-			perspectiveTransform.m34 = 1.0 / -500;
-			
-			// initial starting rotation
-			self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(70.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
-			self.alpha = 0.0f;
-			
-			[self showOverlay:YES];
-			
-			[UIView animateWithDuration:0.2 animations:^{ // flip remaining + bounce
-				self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(-25.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
-				self.alpha = 1.0f;
-			} completion:^(BOOL finished) {
-				[UIView animateWithDuration:0.13 animations:^{
-				 self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(12.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
-				} completion:^(BOOL finished) {
-					[UIView animateWithDuration:0.1 animations:^{
-						self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(-8.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
-					} completion:^(BOOL finished) {
-					   [UIView animateWithDuration:0.1 animations:^{
-						   self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(0.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
-					   } completion:^(BOOL finished) {
-						   [self alertViewDidShow];
-						   if (completion)
-							   completion();
-					   }];
-					}];
-				}];
-			}];
-		}
-		else {
-			[self showOverlay:NO];
-			
-			self.layer.zPosition = 100;
-			self.alpha = 1.0f;
-			
-			CATransform3D perspectiveTransform = CATransform3DIdentity;
-			perspectiveTransform.m34 = 1.0 / -500;
-			
-			[UIView animateWithDuration:0.08 animations:^{
-				self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(-10.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
-			} completion:^(BOOL finished) {
-				[UIView animateWithDuration:0.17 animations:^{
-					self.layer.transform = CATransform3DConcat(CATransform3DMakeRotation(70.0 * M_PI / 180.0, xAxis, yAxis, 0.0), perspectiveTransform);
-					self.alpha = 0.0f;
-				} completion:^(BOOL finished) {
-					[self cleanup];
-					if (completion)
-						completion();
-				}];
-			}];
-		}
-	}
-	
-	// tumble animation
-	else if (animation == URBAlertAnimationTumble) {
-		if (show) {
-			[self showOverlay:YES];
-			
-			CATransform3D rotate = CATransform3DMakeRotation(50.0 * M_PI / 180.0, 0.0, 0.0, 1.0);
-			CATransform3D translate = CATransform3DMakeTranslation(20.0, -500.0, 0.0);
-			self.layer.transform = CATransform3DConcat(rotate, translate);
-			
-			[UIView animateWithDuration:0.4 delay:0.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
-				self.layer.transform = CATransform3DIdentity;
-			} completion:^(BOOL finished) {
-				[self alertViewDidShow];
-				if (completion)
-					completion();
-			}];
-		}
-		else {
-			[self showOverlay:NO];
-			
-			[UIView animateWithDuration:0.4 delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
-				CATransform3D rotate = CATransform3DMakeRotation(-50.0 * M_PI / 180.0, 0.0, 0.0, 1.0);
-				CATransform3D translate = CATransform3DMakeTranslation(-20.0, 500.0, 0.0);
-				self.layer.transform = CATransform3DConcat(rotate, translate);
-			} completion:^(BOOL finished) {
-				[self cleanup];
-				if (completion)
-					completion();
-			}];
-		}
-	}
-	
-	// slide animation
-	else if (animation == URBAlertAnimationSlideLeft || animation == URBAlertAnimationSlideRight) {		
-		if (show) {
-			[self showOverlay:YES];
-			
-			CGFloat startX = (animation == URBAlertAnimationSlideLeft) ? 200.0 : -200.0;
-			CGFloat shiftX = 5.0;
-			if (animation == URBAlertAnimationSlideLeft)
-				shiftX *= -1.0;
-			
-			self.layer.transform = CATransform3DMakeTranslation(startX, 0.0, 0.0);
-			[UIView animateWithDuration:0.15 delay:0.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
-				self.layer.transform = CATransform3DMakeTranslation(shiftX, 0.0, 0.0);
-			} completion:^(BOOL finished) {
-				[UIView animateWithDuration:0.1 animations:^{
-					self.layer.transform = CATransform3DIdentity;
-				} completion:^(BOOL finished) {
-					[self alertViewDidShow];
-					if (completion)
-						completion();
-				}];
-			}];
-		}
-		else {
-			[self showOverlay:NO];
-			
-			CGFloat finalX = (animation == URBAlertAnimationSlideLeft) ? -400.0 : 400.0;
-			CGFloat shiftX = 5.0;
-			if (animation == URBAlertAnimationSlideRight)
-				shiftX *= 1.0;
-			
-			[UIView animateWithDuration:0.1 animations:^{
-				self.layer.transform = CATransform3DMakeTranslation(shiftX, 0.0, 0.0);
-			} completion:^(BOOL finished) {
-				[UIView animateWithDuration:0.15 delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
-					self.layer.transform = CATransform3DMakeTranslation(finalX, 0.0, 0.0);
-				} completion:^(BOOL finished) {
-					[self cleanup];
-					if (completion)
-						completion();
-				}];
-			}];
-		}
-	}
-	
-	// default "pop" animation like UIAlertView
-	else {
-		if (show) {
-			[self showOverlay:YES];
-			
-			self.alpha = 0.0f;
-			self.layer.transform = CATransform3DMakeScale(0.7, 0.7, 1.0);
-			[UIView animateWithDuration:0.17 animations:^{
-				self.layer.transform = CATransform3DMakeScale(1.1, 1.1, 1.0);
-				self.alpha = 1.0f;
-			} completion:^(BOOL finished) {
-				[UIView animateWithDuration:0.12 animations:^{
-					self.layer.transform = CATransform3DMakeScale(0.9, 0.9, 1.0);
-				} completion:^(BOOL finished) {
-					[UIView animateWithDuration:0.1 animations:^{
-						self.layer.transform = CATransform3DIdentity;
-					} completion:^(BOOL finished) {
-						[self alertViewDidShow];
-						if (completion)
-							completion();
-					}];
-				}];
-			}];
-		}
-		else {
-			[self showOverlay:NO];
-			
-			[UIView animateWithDuration:0.1 animations:^{
-				self.layer.transform = CATransform3DMakeScale(1.1, 1.1, 1.0);
-			} completion:^(BOOL finished) {
-				[UIView animateWithDuration:0.15 animations:^{
-					self.layer.transform = CATransform3DIdentity;
-					self.alpha = 0.0f;
-				} completion:^(BOOL finished) {
-					[self cleanup];
-					if (completion)
-						completion();
-				}];
-			}];
-		}
-	}
-}
-
 - (void)showOverlay:(BOOL)show {
 	if (show) {
 		// create a new window to add our overlay and dialogs to
@@ -1149,6 +1144,96 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	self.window = nil;
 	// rekey main AppDelegate window
 	[[[[UIApplication sharedApplication] delegate] window] makeKeyWindow];
+}
+
+#pragma mark - Orientation Helpers
+
+- (void)deviceOrientationChanged:(NSNotification *)notification {
+	UIInterfaceOrientation orientation = [UIApplication sharedApplication].statusBarOrientation;
+	if (_currentOrientation != orientation) {
+		_currentOrientation = orientation;
+		[self reposition];
+	}
+}
+
+- (CGAffineTransform)transformForOrientation:(UIInterfaceOrientation)orientation {
+	CGAffineTransform transform = CGAffineTransformIdentity;
+	
+	// calculate a rotation transform that matches the required orientation
+	if (orientation == UIInterfaceOrientationPortraitUpsideDown)
+		transform = CGAffineTransformMakeRotation(M_PI);
+	else if (orientation == UIInterfaceOrientationLandscapeLeft)
+		transform = CGAffineTransformMakeRotation(-M_PI_2);
+	else if (orientation == UIInterfaceOrientationLandscapeRight)
+		transform = CGAffineTransformMakeRotation(M_PI_2);
+	
+	return transform;
+}
+
+- (void)reposition {
+	CGAffineTransform baseTransform = [self transformForOrientation:_currentOrientation];
+	
+	// block used for repositioning ourselves to account for keyboard and interface orientation changes
+	URBAnimationBlock layoutBlock = ^{
+		self.transform = baseTransform;
+	};
+	
+	// determine if the rotation we're about to undergo is 90 or 180 degrees
+	CGAffineTransform t1 = self.transform;
+	CGAffineTransform t2 = baseTransform;	
+	CGFloat dot = t1.a * t2.a + t1.c * t2.c;
+	CGFloat n1 = sqrtf(t1.a * t1.a + t1.c * t1.c);
+	CGFloat n2 = sqrtf(t2.a * t2.a + t2.c * t2.c);
+	CGFloat rotationDelta = acosf(dot / (n1 * n2));
+	const CGFloat HALF_PI = 1.581;
+	BOOL isDoubleRotation = (rotationDelta > HALF_PI);
+	
+	// use the system rotation duration
+	CGFloat duration = [UIApplication sharedApplication].statusBarOrientationAnimationDuration;
+	// iPad lies about its rotation duration
+	if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
+		duration = 0.4;
+	
+	// double the animation duration if we're rotation 180 degrees
+	if (isDoubleRotation)
+		duration *= 2;
+	
+	// if we haven't laid out the subviews yet, we don't want to animate rotation and position transforms
+	if (_hasLaidOut) {
+		[UIView animateWithDuration:duration animations:layoutBlock];
+	}
+	else {
+		layoutBlock();
+	}
+	_hasLaidOut = YES;
+}
+
+#pragma mark - Keyboard Helpers
+
+- (void)keyboardWillShow:(NSNotification *)note {
+	NSValue *value = [[note userInfo] objectForKey:UIKeyboardFrameEndUserInfoKey];
+	CGRect frame = [value CGRectValue];
+	
+	[self adjustToKeyboardBounds:frame];
+}
+
+- (void)keyboardWillHide:(NSNotification *)note {
+	[self adjustToKeyboardBounds:CGRectZero];
+}
+
+- (void)adjustToKeyboardBounds:(CGRect)bounds {
+	CGRect screenBounds = [[UIScreen mainScreen] bounds];
+	CGFloat height = CGRectGetHeight(screenBounds) - CGRectGetHeight(bounds);
+	CGRect frame = self.frame;
+	frame.origin.y = (height - CGRectGetHeight(self.bounds)) / 2.0;
+	
+	if (CGRectGetMinY(frame) < 0) {
+		NSLog(@"warning: dialog is clipped, origin negative (%f)", CGRectGetMinY(frame));
+	}
+	
+	[UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
+		self.frame = frame;
+	} completion:nil];
 }
 
 #pragma mark - UITextFieldDelegate
