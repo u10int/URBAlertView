@@ -32,13 +32,18 @@ By default, the dismissal animation will be in the same style as the presentatio
 
 	[alertView hideWithAnimation:URBAlertAnimationTumble];
 
+## Customization
+
+Many customization options are available for styles, such as colors, fonts radii and line widths, using the public properties on each instance. Alternatively, you can also use the available `UIAppearance` methods for applying these settings globally within your project. For customizating the buttons within `URBAlertView`, some styles can only be set using their respective `UIAppearance` methods, but I'm hoping to improve this in future updates.
+
+Since the view is drawn completely in code, you can also have complete control over the look of your `URBAlertView` instances by modifying the code within `drawRect:` for both `URBAlertView` and `URBAlertViewButton`, both of which are found within the `URBAlertView.m` implementation.
+
 ## TODO
 
-- Update to better resemple the init methods found in `UIAlertView`.
+- Update to better resemble the init methods found in `UIAlertView`. (added 07/02/2013)
 - Support for defining event handling blocks for each button instead of a single block for all buttons.
-- `UIAppearance` conformance to allow for easier skinning and styling.
-- Support for setting the `UIImage` instances to use for backgrounds and buttons without having to edit the core classes.
-- Support for dynamically swapping out the content view without having to display another alert view.
+- `UIAppearance` conformance to allow for easier skinning and styling. (added 07/02/2013)
+- More customization properties for buttons.
 
 ## License
 
