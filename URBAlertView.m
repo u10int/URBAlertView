@@ -151,8 +151,8 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 }
 
 - (void)initialize {
-	self.backgroundColor = [UIColor colorWithWhite:0.2 alpha:1.0];
-	self.backgroundGradation = 0.12;
+	self.backgroundColor = [UIColor colorWithWhite:0.22 alpha:1.0];
+	self.backgroundGradation = 0.1;
 	self.strokeColor = [UIColor colorWithWhite:0.8 alpha:1.000];
 	self.strokeWidth = 3.0;
 	self.cornerRadius = 6.0;
@@ -167,7 +167,7 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	self.messageShadowColor = [UIColor blackColor];
 	self.messageShadowOffset = CGSizeMake(0.0, -1.0);
 	
-	self.buttonBackgroundColor = [UIColor colorWithWhite:0.23 alpha:1.0];
+	self.buttonBackgroundColor = [UIColor colorWithWhite:0.35 alpha:1.0];
 		
 	self.animationType = URBAlertAnimationDefault;
 	self.buttons = [NSMutableArray array];
@@ -399,6 +399,11 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	URBAlertViewButton *button = [[URBAlertViewButton alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, kURBAlertButtonHeight)];
 	[button setTitle:title forState:UIControlStateNormal];
 	[button addTarget:self action:@selector(buttonTapped:) forControlEvents:UIControlEventTouchUpInside];
+	button.titleLabel.font = [UIFont boldSystemFontOfSize:16.0];
+	
+	if (self.buttonBackgroundColor) {
+		button.backgroundColor = self.buttonBackgroundColor;
+	}
 	
 	[self.buttons addObject:button];
 	
@@ -1293,7 +1298,7 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	
 	// base drawing
 	CGRect buttonBgRect = frame;
-	UIBezierPath *buttonBgPath = [UIBezierPath bezierPathWithRoundedRect:buttonBgRect cornerRadius:3];
+	UIBezierPath *buttonBgPath = [UIBezierPath bezierPathWithRoundedRect:buttonBgRect cornerRadius:4];
 	CGContextSaveGState(context);
 	[buttonBgPath addClip];
 	CGContextDrawLinearGradient(context, buttonBgGradient,
