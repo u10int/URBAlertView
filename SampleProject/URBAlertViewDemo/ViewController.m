@@ -18,25 +18,25 @@
 - (void)viewDidLoad {
 	[super viewDidLoad];
 	
-//	NSValue *shadowOffset = [NSValue valueWithUIOffset:UIOffsetMake(0.0, 1.0)];
-//	NSDictionary *titleTextAttributes = @{UITextAttributeFont:[UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:18.0f], UITextAttributeTextColor:[UIColor colorWithWhite:0.1 alpha:1.0],
-//									   UITextAttributeTextShadowColor:[UIColor whiteColor], UITextAttributeTextShadowOffset:shadowOffset};
-//	NSDictionary *messageTextAttributes = @{UITextAttributeFont:[UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:14.0f], UITextAttributeTextColor:[UIColor colorWithWhite:0.3 alpha:1.0],
-//										 UITextAttributeTextShadowColor:[UIColor whiteColor], UITextAttributeTextShadowOffset:shadowOffset};
-//	NSDictionary *buttonTextAttributes = @{UITextAttributeFont:[UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:18.0f], UITextAttributeTextColor:[UIColor colorWithWhite:0.1 alpha:1.0],
-//										 UITextAttributeTextShadowColor:[UIColor whiteColor], UITextAttributeTextShadowOffset:shadowOffset};
-//	NSDictionary *cancelButtonTextAttributes = @{UITextAttributeFont:[UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:18.0f], UITextAttributeTextColor:[UIColor colorWithWhite:0.5 alpha:1.0],
-//										UITextAttributeTextShadowColor:[UIColor whiteColor], UITextAttributeTextShadowOffset:shadowOffset};
-//	[[URBAlertView appearance] setBackgroundColor:[UIColor colorWithWhite:0.9 alpha:1.0]];
-//	[[URBAlertView appearance] setBackgroundGradation:0.05];
-//	[[URBAlertView appearance] setStrokeColor:[UIColor colorWithWhite:0.35 alpha:1.0]];
-//	[[URBAlertView appearance] setStrokeWidth:3.0];
-//	[[URBAlertView appearance] setTitleTextAttributes:titleTextAttributes];
-//	[[URBAlertView appearance] setMessageTextAttributes:messageTextAttributes];
-//	[[URBAlertView appearance] setButtonBackgroundColor:[UIColor colorWithWhite:0.8 alpha:1.0]];
-//	[[URBAlertView appearance] setButtonStrokeColor:[UIColor colorWithWhite:0.65 alpha:1.0]];
-//	[[URBAlertView appearance] setButtonTextAttributes:buttonTextAttributes forState:UIControlStateNormal];
-//	[[URBAlertView appearance] setCancelButtonTextAttributes:cancelButtonTextAttributes forState:UIControlStateNormal];
+	NSValue *shadowOffset = [NSValue valueWithUIOffset:UIOffsetMake(0.0, 1.0)];
+	NSDictionary *titleTextAttributes = @{UITextAttributeFont:[UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:18.0f], UITextAttributeTextColor:[UIColor colorWithWhite:0.1 alpha:1.0],
+									   UITextAttributeTextShadowColor:[UIColor whiteColor], UITextAttributeTextShadowOffset:shadowOffset};
+	NSDictionary *messageTextAttributes = @{UITextAttributeFont:[UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:14.0f], UITextAttributeTextColor:[UIColor colorWithWhite:0.3 alpha:1.0],
+										 UITextAttributeTextShadowColor:[UIColor whiteColor], UITextAttributeTextShadowOffset:shadowOffset};
+	NSDictionary *buttonTextAttributes = @{UITextAttributeFont:[UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:18.0f], UITextAttributeTextColor:[UIColor colorWithWhite:0.1 alpha:1.0],
+										 UITextAttributeTextShadowColor:[UIColor whiteColor], UITextAttributeTextShadowOffset:shadowOffset};
+	NSDictionary *cancelButtonTextAttributes = @{UITextAttributeFont:[UIFont fontWithName:@"HelveticaNeue-CondensedBold" size:18.0f], UITextAttributeTextColor:[UIColor colorWithWhite:0.5 alpha:1.0],
+										UITextAttributeTextShadowColor:[UIColor whiteColor], UITextAttributeTextShadowOffset:shadowOffset};
+	[[URBAlertView appearance] setBackgroundColor:[UIColor colorWithWhite:0.9 alpha:1.0]];
+	[[URBAlertView appearance] setBackgroundGradation:0.05];
+	[[URBAlertView appearance] setStrokeColor:[UIColor colorWithWhite:0.35 alpha:1.0]];
+	[[URBAlertView appearance] setStrokeWidth:3.0];
+	[[URBAlertView appearance] setTitleTextAttributes:titleTextAttributes];
+	[[URBAlertView appearance] setMessageTextAttributes:messageTextAttributes];
+	[[URBAlertView appearance] setButtonBackgroundColor:[UIColor colorWithWhite:0.8 alpha:1.0]];
+	[[URBAlertView appearance] setButtonStrokeColor:[UIColor colorWithWhite:0.65 alpha:1.0]];
+	[[URBAlertView appearance] setButtonTextAttributes:buttonTextAttributes forState:UIControlStateNormal];
+	[[URBAlertView appearance] setCancelButtonTextAttributes:cancelButtonTextAttributes forState:UIControlStateNormal];
 	
 	self.view.backgroundColor = [UIColor whiteColor];
 	

@@ -157,23 +157,23 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 }
 
 - (void)initialize {
-	self.backgroundColor = [UIColor colorWithWhite:0.22 alpha:1.0];
-	self.backgroundGradation = 0.1;
-	self.strokeColor = [UIColor colorWithWhite:0.8 alpha:1.000];
-	self.strokeWidth = 3.0;
-	self.cornerRadius = 6.0;
+	_backgroundColor = [UIColor colorWithWhite:0.22 alpha:1.0];
+	_backgroundGradation = 0.1;
+	_strokeColor = [UIColor colorWithWhite:0.8 alpha:1.000];
+	_strokeWidth = 3.0;
+	_cornerRadius = 6.0;
 	
-	self.titleFont = [UIFont boldSystemFontOfSize:18.0];
-	self.titleColor = [UIColor whiteColor];
-	self.titleShadowColor = [UIColor blackColor];
-	self.titleShadowOffset = CGSizeMake(0.0, -1.0);
+	_titleFont = [UIFont boldSystemFontOfSize:18.0];
+	_titleColor = [UIColor whiteColor];
+	_titleShadowColor = [UIColor blackColor];
+	_titleShadowOffset = CGSizeMake(0.0, -1.0);
 	
-	self.messageFont = [UIFont systemFontOfSize:14.0];
-	self.messageColor = [UIColor whiteColor];
-	self.messageShadowColor = [UIColor blackColor];
-	self.messageShadowOffset = CGSizeMake(0.0, -1.0);
+	_messageFont = [UIFont systemFontOfSize:14.0];
+	_messageColor = [UIColor whiteColor];
+	_messageShadowColor = [UIColor blackColor];
+	_messageShadowOffset = CGSizeMake(0.0, -1.0);
 	
-	self.buttonBackgroundColor = [UIColor colorWithWhite:0.35 alpha:1.0];
+	_buttonBackgroundColor = [UIColor colorWithWhite:0.35 alpha:1.0];
 		
 	self.animationType = URBAlertAnimationDefault;
 	self.buttons = [NSMutableArray array];
