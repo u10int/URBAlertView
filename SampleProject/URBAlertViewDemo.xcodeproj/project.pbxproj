@@ -19,7 +19,7 @@
 		2B661EE0168919CD0047CE60 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B661EDF168919CD0047CE60 /* QuartzCore.framework */; };
 		2B661EE516891A060047CE60 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B661EE216891A050047CE60 /* AppDelegate.m */; };
 		2B661EE616891A060047CE60 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B661EE416891A060047CE60 /* ViewController.m */; };
-		2B8AB653168937DD00E205CF /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B8AB652168937DD00E205CF /* Accelerate.framework */; };
+		2BE7CB7E1822B13C00BDAFB3 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B8AB652168937DD00E205CF /* Accelerate.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,7 +42,6 @@
 		2B661EE316891A060047CE60 /* ViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
 		2B661EE416891A060047CE60 /* ViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
 		2B8AB652168937DD00E205CF /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
-		2B8AB6551689432E00E205CF /* CoreImage.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreImage.framework; path = System/Library/Frameworks/CoreImage.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -50,7 +49,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2B8AB653168937DD00E205CF /* Accelerate.framework in Frameworks */,
+				2BE7CB7E1822B13C00BDAFB3 /* Accelerate.framework in Frameworks */,
 				2B661EE0168919CD0047CE60 /* QuartzCore.framework in Frameworks */,
 				2B661EBB168919730047CE60 /* UIKit.framework in Frameworks */,
 				2B661EBD168919730047CE60 /* Foundation.framework in Frameworks */,
@@ -83,7 +82,6 @@
 		2B661EB9168919730047CE60 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				2B8AB6551689432E00E205CF /* CoreImage.framework */,
 				2B8AB652168937DD00E205CF /* Accelerate.framework */,
 				2B661EDF168919CD0047CE60 /* QuartzCore.framework */,
 				2B661EBA168919730047CE60 /* UIKit.framework */,
