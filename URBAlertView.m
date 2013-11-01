@@ -1719,7 +1719,7 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 @implementation UIColor (URBAlertView)
 
 - (UIColor *)adjustBrightness:(CGFloat)amount {
-	float h, s, b, a, w;
+	CGFloat h, s, b, a, w;
 	
     if ([self getHue:&h saturation:&s brightness:&b alpha:&a]) {
 		b += (amount-1.0);
