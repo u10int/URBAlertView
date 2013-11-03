@@ -764,6 +764,7 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	CGFloat minY = CGRectGetMinY(textFrame);
 	if (self.title.length > 0) {
 		titleHeight = [self.title sizeWithFont:self.titleFont constrainedToSize:CGSizeMake(CGRectGetWidth(textFrame), MAXFLOAT) lineBreakMode:NSLineBreakByWordWrapping].height;
+		titleHeight = ceilf(titleHeight);
 		minY += kURBAlertPadding;
 	}
 	layout.titleRect = CGRectMake(CGRectGetMinX(textFrame), minY, CGRectGetWidth(textFrame), titleHeight);
@@ -773,6 +774,7 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	minY = CGRectGetMaxY(layout.titleRect);
 	if (self.message.length > 0) {
 		messageHeight = [self.message sizeWithFont:self.messageFont constrainedToSize:CGSizeMake(CGRectGetWidth(textFrame), MAXFLOAT) lineBreakMode:NSLineBreakByWordWrapping].height;
+		messageHeight = ceilf(messageHeight);
 		minY += kURBAlertPadding;
 	}
 	layout.messageRect = CGRectMake(CGRectGetMinX(textFrame), minY, CGRectGetWidth(textFrame), messageHeight);
