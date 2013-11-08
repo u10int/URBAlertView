@@ -14,6 +14,8 @@ To use `URBAlertView` in your own project, just import `URBAlertView.h` and `URB
 
 The project uses ARC and targets iOS 5.0+.
 
+Since this project has been updated to use some new API methods only available in iOS 7+, to avoid compiler warnings when building it's recommended to use in Xcode 5 and higher.
+
 ## Usage Examples
 
 The process of displaying an alert is very similar to that of UIKit's `UIAlertView`, except that you can use block for handling button events instead of the cumbersome delegate method. Just create an instance of `URBAlertView`, add some buttons and show (or show with a specific presentation style):

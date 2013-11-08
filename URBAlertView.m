@@ -56,6 +56,7 @@ typedef void (^URBAnimationBlock)();
 @property (nonatomic, strong) URBAlertViewButton *cancelButton;
 @property (nonatomic, strong) NSMutableArray *buttons;
 @property (nonatomic, strong) NSMutableArray *textFields;
+@property (nonatomic, weak, readwrite) UITextField *focusedTextField;
 @property (nonatomic, strong) URBAlertWindowOverlay *overlay;
 @property (nonatomic, assign) URBAlertAnimation animationType;
 @property (nonatomic, strong) URBAlertViewBlock block;
@@ -763,7 +764,19 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	CGFloat titleHeight = 0;
 	CGFloat minY = CGRectGetMinY(textFrame);
 	if (self.title.length > 0) {
-		titleHeight = [self.title sizeWithFont:self.titleFont constrainedToSize:CGSizeMake(CGRectGetWidth(textFrame), MAXFLOAT) lineBreakMode:NSLineBreakByWordWrapping].height;
+		if ([self.title respondsToSelector:@selector(boundingRectWithSize:options:attributes:context:)]) {
+			CGRect titleBounds = [self.title boundingRectWithSize:CGSizeMake(CGRectGetWidth(textFrame), MAXFLOAT)
+														  options:(NSStringDrawingUsesLineFragmentOrigin|NSStringDrawingUsesFontLeading)
+													   attributes:@{NSFontAttributeName:self.titleFont}
+														  context:nil];
+			titleHeight = titleBounds.size.height;
+		}
+		else {
+			CGSize titleSize = [self.title sizeWithFont:self.titleFont
+									  constrainedToSize:CGSizeMake(CGRectGetWidth(textFrame), MAXFLOAT)
+										  lineBreakMode:NSLineBreakByWordWrapping];
+			titleHeight = titleSize.height;
+		}
 		titleHeight = ceilf(titleHeight);
 		minY += kURBAlertPadding;
 	}
@@ -773,7 +786,19 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	CGFloat messageHeight = 0;
 	minY = CGRectGetMaxY(layout.titleRect);
 	if (self.message.length > 0) {
-		messageHeight = [self.message sizeWithFont:self.messageFont constrainedToSize:CGSizeMake(CGRectGetWidth(textFrame), MAXFLOAT) lineBreakMode:NSLineBreakByWordWrapping].height;
+		if ([self.title respondsToSelector:@selector(boundingRectWithSize:options:attributes:context:)]) {
+			CGRect messageBounds = [self.message boundingRectWithSize:CGSizeMake(CGRectGetWidth(textFrame), MAXFLOAT)
+															  options:(NSStringDrawingUsesLineFragmentOrigin|NSStringDrawingUsesFontLeading)
+														   attributes:@{NSFontAttributeName:self.messageFont}
+															  context:nil];
+			messageHeight = messageBounds.size.height;
+		}
+		else {
+			CGSize messageSize = [self.message sizeWithFont:self.messageFont
+										  constrainedToSize:CGSizeMake(CGRectGetWidth(textFrame), MAXFLOAT)
+											  lineBreakMode:NSLineBreakByWordWrapping];
+			messageHeight = messageSize.height;
+		}
 		messageHeight = ceilf(messageHeight);
 		minY += kURBAlertPadding;
 	}
@@ -964,7 +989,21 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 		if (shadowColor != nil && !CGSizeEqualToSize(shadowOffset, CGSizeZero)) {
 			CGContextSetShadowWithColor(context, shadowOffset, 0.0, shadowColor.CGColor);
 		}
-		[text drawInRect:rect withFont:font lineBreakMode:NSLineBreakByWordWrapping alignment:NSTextAlignmentCenter];
+		
+		if (floor(NSFoundationVersionNumber) > NSFoundationVersionNumber_iOS_6_1) {
+			// iOS 7 and later
+			NSMutableParagraphStyle *style = [[NSParagraphStyle defaultParagraphStyle] mutableCopy];
+			style.lineBreakMode = NSLineBreakByWordWrapping;
+			style.alignment = NSTextAlignmentCenter;
+			
+			NSDictionary *textAttributes = @{NSFontAttributeName: font,
+											 NSForegroundColorAttributeName: color,
+											 NSParagraphStyleAttributeName: style};
+			[text drawInRect:rect withAttributes:textAttributes];
+		}
+		else {
+			[text drawInRect:rect withFont:font lineBreakMode:NSLineBreakByWordWrapping alignment:NSTextAlignmentCenter];
+		}
 		
 		CGContextRestoreGState(context);		
 	}
@@ -1157,6 +1196,10 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 }
 
 - (void)cleanup {
+	// dismiss keyboard if currently active
+	if (self.focusedTextField) {
+		[self.focusedTextField resignFirstResponder];
+	}
 	//self.layer.transform = CATransform3DIdentity;
 	//self.transform = CGAffineTransformIdentity;
 	self.alpha = 1.0f;
@@ -1179,12 +1222,15 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	CGAffineTransform transform = CGAffineTransformIdentity;
 	
 	// calculate a rotation transform that matches the required orientation
-	if (orientation == UIInterfaceOrientationPortraitUpsideDown)
+	if (orientation == UIInterfaceOrientationPortraitUpsideDown) {
 		transform = CGAffineTransformMakeRotation(M_PI);
-	else if (orientation == UIInterfaceOrientationLandscapeLeft)
+	}
+	else if (orientation == UIInterfaceOrientationLandscapeLeft) {
 		transform = CGAffineTransformMakeRotation(-M_PI_2);
-	else if (orientation == UIInterfaceOrientationLandscapeRight)
+	}
+	else if (orientation == UIInterfaceOrientationLandscapeRight) {
 		transform = CGAffineTransformMakeRotation(M_PI_2);
+	}
 	
 	return transform;
 }
@@ -1210,12 +1256,10 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	// use the system rotation duration
 	CGFloat duration = [UIApplication sharedApplication].statusBarOrientationAnimationDuration;
 	// iPad lies about its rotation duration
-	if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
-		duration = 0.4;
+	if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) { duration = 0.4; }
 	
 	// double the animation duration if we're rotation 180 degrees
-	if (isDoubleRotation)
-		duration *= 2;
+	if (isDoubleRotation) { duration *= 2; }
 	
 	// if we haven't laid out the subviews yet, we don't want to animate rotation and position transforms
 	if (_hasLaidOut) {
@@ -1256,6 +1300,14 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 
 #pragma mark - UITextFieldDelegate
 
+- (void)textFieldDidBeginEditing:(UITextField *)textField {
+	self.focusedTextField = textField;
+}
+
+- (void)textFieldDidEndEditing:(UITextField *)textField {
+	self.focusedTextField = nil;
+}
+
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
 	NSUInteger index = [self.textFields indexOfObject:textField];
 	NSUInteger count = self.textFields.count;
@@ -1286,7 +1338,6 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	UIColor *gradientOuter = [UIColor colorWithRed: 0 green: 0 blue: 0 alpha: 0.4];
 	UIColor *gradientInner = [UIColor colorWithRed: 0 green: 0 blue: 0 alpha: 0.1];
 	
-	// gradients
 	NSArray *radialGradientColors = @[(id)gradientInner.CGColor, (id)gradientOuter.CGColor];
 	CGFloat radialGradientLocations[] = {0, 0.5, 1};
 	CGGradientRef radialGradient = CGGradientCreateWithColors(colorSpace, (__bridge CFArrayRef)radialGradientColors, radialGradientLocations);
@@ -1301,7 +1352,6 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 								kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
 	CGContextRestoreGState(context);
 	
-	// cleanup
 	CGGradientRelease(radialGradient);
 	CGColorSpaceRelease(colorSpace);
 }
@@ -1550,15 +1600,13 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 }
 
 - (void)drawRect:(CGRect)rect {
-	// General Declarations
 	CGContextRef context = UIGraphicsGetCurrentContext();
 	CGContextSaveGState(context);
 	
-	// Color Declarations
+	// colors
 	UIColor *white10 = [UIColor colorWithWhite:1.0 alpha:0.1];
 	UIColor *grey40 = [UIColor colorWithWhite:0.4 alpha:1.0];
 	
-	// Shadow Declarations
 	CGColorRef innerShadow = grey40.CGColor;
 	CGSize innerShadowOffset = CGSizeMake(0, 2);
 	CGFloat innerShadowBlurRadius = 2;
@@ -1566,14 +1614,14 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 	CGSize outerShadowOffset = CGSizeMake(0, 1);
 	CGFloat outerShadowBlurRadius = 0;
 	
-	// Rectangle Drawing
+	// base
 	UIBezierPath *rectanglePath = [UIBezierPath bezierPathWithRect: CGRectIntegral(rect)];
 	CGContextSaveGState(context);
 	CGContextSetShadowWithColor(context, outerShadowOffset, outerShadowBlurRadius, outerShadow);
 	[[UIColor whiteColor] setFill];
 	[rectanglePath fill];
 	
-	// Rectangle Inner Shadow
+	// inner shadow
 	CGRect rectangleBorderRect = CGRectInset([rectanglePath bounds], -innerShadowBlurRadius, -innerShadowBlurRadius);
 	rectangleBorderRect = CGRectOffset(rectangleBorderRect, -innerShadowOffset.width, -innerShadowOffset.height);
 	rectangleBorderRect = CGRectInset(CGRectUnion(rectangleBorderRect, [rectanglePath bounds]), -1, -1);
@@ -1716,7 +1764,7 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 @end
 
 
-#pragma mark - UIColor+URBSegmentedControl
+#pragma mark - UIColor+URBAlertView
 
 @implementation UIColor (URBAlertView)
 
