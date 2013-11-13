@@ -203,7 +203,6 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 
 - (void)dealloc
 {
-    NSLog(@"dealloc ----- %s",__FUNCTION__);
 }
 
 - (void)setHandlerBlock:(URBAlertViewBlock)block {
