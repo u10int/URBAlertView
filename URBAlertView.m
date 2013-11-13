@@ -1150,7 +1150,7 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 			self.overlay = [URBAlertWindowOverlay new];
 			URBAlertWindowOverlay *overlay = self.overlay;
 			overlay.opaque = NO;
-			overlay.alertView = self;
+//			overlay.alertView = self;
 			overlay.frame = self.window.bounds;
 			overlay.alpha = 0.0;
 		}
@@ -1284,15 +1284,30 @@ static CGSize const kURBAlertViewDefaultSize = {280.0, 180.0};
 }
 
 - (void)adjustToKeyboardBounds:(CGRect)bounds {
-	CGRect screenBounds = [[UIScreen mainScreen] bounds];
-	CGFloat height = CGRectGetHeight(screenBounds) - CGRectGetHeight(bounds);
+    CGRect screenBounds = [[UIScreen mainScreen] bounds];
 	CGRect frame = self.frame;
-	frame.origin.y = (height - CGRectGetHeight(self.bounds)) / 2.0;
+	CGFloat height = CGRectGetHeight(screenBounds) - CGRectGetHeight(bounds);
+    UIInterfaceOrientation orientation =  [UIApplication sharedApplication].statusBarOrientation;
+    if (UIDeviceOrientationIsLandscape(orientation)) {
+        height = CGRectGetWidth(screenBounds)-CGRectGetWidth(bounds);
+        frame.origin.x = (height - CGRectGetWidth(self.bounds)) /2.0 ;
+        if (bounds.origin.x  == 0) {
+            frame.origin.x = frame.origin.x +CGRectGetWidth(bounds);
+        }
+    }
+    else
+    {
+        frame.origin.y = (height - CGRectGetHeight(self.bounds)) / 2.0;
+        if (bounds.origin.y == 0) {
+            frame.origin.y += CGRectGetHeight(bounds);
+        }
+    }
 	
 	if (CGRectGetMinY(frame) < 0) {
 		NSLog(@"warning: dialog is clipped, origin negative (%f)", CGRectGetMinY(frame));
 	}
-	
+    
+    
 	[UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
 		self.frame = frame;
 	} completion:nil];
